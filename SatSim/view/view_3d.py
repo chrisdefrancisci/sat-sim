@@ -25,7 +25,7 @@ class OrbitView:
                                       color="gray", linewidth=0.7, alpha=0.4, label="Full simulated path")
         self.timed_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
                                        *args, **kwargs)
-        self.marker = self.ax.scatter(pos[-1], *args, **kwargs)
+        self.marker = self.ax.scatter(*pos[-1], *args, **kwargs)
 
     def clear(self):
         """
@@ -42,12 +42,12 @@ class OrbitView:
         :param t_min: Minimum time to display.
         :param t_max: Maximum time to display. Marker is also displayed at this time.
         """
-        indices = np.where(t_min <= self.times <= t_max)
+        indices = (t_min <= self.times) & (self.times <= t_max)
         self.timed_path.clear()
         self.marker.remove()
         self.timed_path = self.ax.plot(self.pos[indices, 0], self.pos[indices, 1], self.pos[indices, 2], *self.args,
                                        **self.kwargs)
-        self.marker = self.ax.scatter(self.pos[indices[-1]], *self.args, **self.kwargs)
+        self.marker = self.ax.scatter(*self.pos[indices][-1], *self.args, **self.kwargs)
         self.ax.redraw_in_frame()
 
 
@@ -104,4 +104,14 @@ class View3D(ttk.Frame):
     def add_orbit(self, *args, **kwargs):
         self.orbits.append(OrbitView(self.ax, *args, **kwargs))
         # TODO: get max orbit and set window
+        self.t_min = self.orbits[-1].times[0]
+        self.t_max = self.orbits[-1].times[-1]
+
         self.update_times(self.t_min, self.t_max)
+
+    def clear(self):
+        for orbit in self.orbits:
+            orbit.clear()
+        self.orbits = []
+        self.t_min = None
+        self.t_max = None
