@@ -99,7 +99,7 @@ class View3D(ttk.Frame):
         self.t_max = t_max
         for orbit in self.orbits:
             orbit.update(t_min, t_max)
-        self.canvas.draw_idle()
+        self.refresh()
 
     def add_orbit(self, *args, **kwargs):
         self.orbits.append(OrbitView(self.ax, *args, **kwargs))
@@ -108,6 +108,7 @@ class View3D(ttk.Frame):
         self.t_max = self.orbits[-1].times[-1]
 
         self.update_times(self.t_min, self.t_max)
+        self.refresh()
 
     def clear(self):
         for orbit in self.orbits:
@@ -115,3 +116,21 @@ class View3D(ttk.Frame):
         self.orbits = []
         self.t_min = None
         self.t_max = None
+
+    def refresh(self):
+        """
+        Refresh the plot, ensuring uniform aspect is maintained.
+        """
+
+        extents = np.array(
+            [self.ax.xaxis.get_data_interval(), self.ax.yaxis.get_data_interval(), self.ax.zaxis.get_data_interval()])
+        centers = np.mean(extents, axis=1)
+        max_range = max(extents[:, 1] - extents[:, 0])
+        half_range = max_range / 2
+
+        self.ax.set_xlim3d(centers[0] - half_range, centers[0] + half_range)
+        self.ax.set_ylim3d(centers[1] - half_range, centers[1] + half_range)
+        self.ax.set_zlim3d(centers[2] - half_range, centers[2] + half_range)
+        self.ax.set_box_aspect([1, 1, 1])
+
+        self.canvas.draw_idle()

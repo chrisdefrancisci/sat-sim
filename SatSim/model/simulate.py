@@ -41,7 +41,7 @@ class Simulate:
         :return:
         """
         # For now let's default to running 2 periods after any change
-        max_period = self._get_max_period() * 10
+        max_period = self._get_max_period() * 2
         dt = 60  # (s) = 1min
         t_eval = np.linspace(0, max_period, int(max_period / dt))
         y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
