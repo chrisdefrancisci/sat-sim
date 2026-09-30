@@ -31,9 +31,10 @@ class OrbitView:
         """
         Clears all plots and markers.
         """
-        self.full_path.clear()
-        self.timed_path.clear()
+        self.full_path[0].remove()
+        self.timed_path[0].remove()
         self.marker.remove()
+        self.ax.redraw_in_frame()
 
     def update(self, t_min, t_max):
         """
@@ -43,7 +44,7 @@ class OrbitView:
         :param t_max: Maximum time to display. Marker is also displayed at this time.
         """
         indices = (t_min <= self.times) & (self.times <= t_max)
-        self.timed_path.clear()
+        self.timed_path[0].remove()
         self.marker.remove()
         self.timed_path = self.ax.plot(self.pos[indices, 0], self.pos[indices, 1], self.pos[indices, 2], *self.args,
                                        **self.kwargs)
@@ -94,30 +95,7 @@ class View3D(ttk.Frame):
         self.ax.set_aspect("equal")
         self.ax.set_box_aspect([1, 1, 1])
 
-    def update_times(self, t_min, t_max):
-        self.t_min = t_min
-        self.t_max = t_max
-        for orbit in self.orbits:
-            orbit.update(t_min, t_max)
-        self.refresh()
-
-    def add_orbit(self, *args, **kwargs):
-        self.orbits.append(OrbitView(self.ax, *args, **kwargs))
-        # TODO: get max orbit and set window
-        self.t_min = self.orbits[-1].times[0]
-        self.t_max = self.orbits[-1].times[-1]
-
-        self.update_times(self.t_min, self.t_max)
-        self.refresh()
-
-    def clear(self):
-        for orbit in self.orbits:
-            orbit.clear()
-        self.orbits = []
-        self.t_min = None
-        self.t_max = None
-
-    def refresh(self):
+    def _refresh(self):
         """
         Refresh the plot, ensuring uniform aspect is maintained.
         """
@@ -134,3 +112,26 @@ class View3D(ttk.Frame):
         self.ax.set_box_aspect([1, 1, 1])
 
         self.canvas.draw_idle()
+
+    def update_times(self, t_min, t_max):
+        self.t_min = t_min
+        self.t_max = t_max
+        for orbit in self.orbits:
+            orbit.update(t_min, t_max)
+        self._refresh()
+
+    def add_orbit(self, *args, **kwargs):
+        self.orbits.append(OrbitView(self.ax, *args, **kwargs))
+        # TODO: get max orbit and set window
+        self.t_min = self.orbits[-1].times[0]
+        self.t_max = self.orbits[-1].times[-1]
+
+        self.update_times(self.t_min, self.t_max)
+        self._refresh()
+
+    def clear(self):
+        for orbit in self.orbits:
+            orbit.clear()
+        self.orbits = []
+        self.t_min = None
+        self.t_max = None
