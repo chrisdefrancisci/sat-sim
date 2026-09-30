@@ -36,16 +36,18 @@ class Simulate:
     def run_simulation(self):
         r"""
 
+        Note that if :code:`solve_ivp`'s argument for relative tolerance, `rtol`, is not sufficiently small, this will not work.
+
         :return:
         """
         # For now let's default to running 2 periods after any change
-        max_period = self._get_max_period()
+        max_period = self._get_max_period() * 10
         dt = 60  # (s) = 1min
         t_eval = np.linspace(0, max_period, int(max_period / dt))
         y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
         sol = solve_ivp(
             self._dynamics, [t_eval[0], t_eval[-1]], y0, t_eval=t_eval,
-            args=(self,)
+            args=(self,), rtol=1e-9
         )
         self.times = sol.t
         self.states = sol.y.T

@@ -83,6 +83,19 @@ class OrbitModel:
 
         Calculates the semimajor axis, :math:`a`, and initializes position and velocity to be at perigee.
 
+        Uses the definition of eccentricity to convert between :math:`r_p` and :math:`a`.
+        .. math::
+            \begin{aligned}
+                e &= \frac{c}{a} \\
+                r_p &= a - c \\
+                r_p &= a (1 - e)
+            \end{aligned}
+
+        Uses the vis-viva equation for to determine velocity at perigee.
+        .. math::
+            v^2 = \mu (\frac{2}{|r|} - \frac{1}{a})
+
+        :see also: Vallado, Eq 1-2, pg 14; Eq 1-22, pg 27; Eq 1-30, pg 32
         :return: State in :math:`km`, :math:`\frac{km}{s}`.
             Note that this is a row vector for ease of use with :code:`solve_ivp`.
         """

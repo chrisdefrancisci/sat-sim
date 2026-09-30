@@ -2,7 +2,7 @@
 Constants relating to Earth.
 """
 
-mass = 5.972e24
+mass = 5.9733328e24
 """
 float: Mass of the Earth (kg)
 """
