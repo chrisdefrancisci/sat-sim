@@ -4,6 +4,11 @@ from tkinter import ttk
 import matplotlib
 
 matplotlib.use("TkAgg")
+matplotlib.rcParams['axes3d.mouserotationstyle'] = 'azel'
+
+import matplotlib.pyplot as plt
+
+plt.style.use('dark_background')
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -11,6 +16,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import numpy as np
 
 from SatSim.constants import earth
+from SatSim.view.palette import electric_sapphire
 
 import traceback
 
@@ -76,11 +82,12 @@ class View3D(ttk.Frame):
         """
         super().__init__(parent)
 
-        self.figure = Figure(figsize=(6.5, 6.5), dpi=100)
-        self.ax = self.figure.add_subplot(111, projection="3d")
+        with plt.rc_context({'axes3d.mouserotationstyle': 'azel'}):
+            self.figure = Figure(figsize=(6.5, 6.5), dpi=100)
+            self.ax = self.figure.add_subplot(111, projection="3d")
 
-        self.canvas = FigureCanvasTkAgg(self.figure, master=self)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            self.canvas = FigureCanvasTkAgg(self.figure, master=self)
+            self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         toolbar = NavigationToolbar2Tk(self.canvas, self, pack_toolbar=False)
         toolbar.update()
@@ -102,7 +109,7 @@ class View3D(ttk.Frame):
         y = earth.radius * np.sin(u) * np.sin(v)
         z = earth.radius * np.cos(v)
         self._earth_surface = self.ax.plot_surface(
-            x, y, z, color="steelblue", alpha=0.35, linewidth=0, antialiased=True
+            x, y, z, color=electric_sapphire, alpha=0.35, linewidth=0, antialiased=True
         )
         self.ax.set_aspect("equal")
         self.ax.set_box_aspect([1, 1, 1])
