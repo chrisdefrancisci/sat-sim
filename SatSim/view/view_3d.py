@@ -1,4 +1,5 @@
 import tkinter as tk
+import traceback
 from tkinter import ttk
 import matplotlib
 
@@ -10,6 +11,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import numpy as np
 
 from SatSim.constants import earth
+
+import traceback
 
 
 class OrbitView:
@@ -32,8 +35,11 @@ class OrbitView:
         Clears all plots and markers.
         """
         self.full_path[0].remove()
+        self.full_path = None
         self.timed_path[0].remove()
+        self.timed_path = None
         self.marker.remove()
+        self.marker = None
         self.ax.redraw_in_frame()
 
     def update(self, t_min, t_max):
@@ -44,8 +50,14 @@ class OrbitView:
         :param t_max: Maximum time to display. Marker is also displayed at this time.
         """
         indices = (t_min <= self.times) & (self.times <= t_max)
-        self.timed_path[0].remove()
-        self.marker.remove()
+        if not indices.any():
+            indices = np.zeros_like(self.times, dtype=bool)
+            indices[np.argmin(np.abs(self.times - t_max))] = True
+        if self.timed_path is not None:
+            self.timed_path[0].remove()  # error here when timed_path is 0 length or small? I.e., when end <= begin
+        if self.marker is not None:
+            self.marker.remove()
+
         self.timed_path = self.ax.plot(self.pos[indices, 0], self.pos[indices, 1], self.pos[indices, 2], *self.args,
                                        **self.kwargs)
         self.marker = self.ax.scatter(*self.pos[indices][-1], *self.args, **self.kwargs)

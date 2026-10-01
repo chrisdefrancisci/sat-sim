@@ -87,7 +87,9 @@ class SimController(ttk.Frame):
             self.view3d.add_orbit(full_t, full_pos)
 
         self.total_duration = self.model.get_total_duration()
-        self._set_range(0.0, self.total_duration / 60.0)
+        self.start_scale.configure(to=self.total_duration / 60)
+        self.end_scale.configure(to=self.total_duration / 60)
+        self._set_range(0.0, self.total_duration / 60)
 
     def _on_slide(self):
         # Enforce start <= end so the selected window is always valid.
@@ -116,7 +118,8 @@ class SimController(ttk.Frame):
         """
 
         """
-        t_min = self.start_var.get() * 60.0  # minutes -> seconds
+        # *60 because slider is in minutes, but data is in seconds
+        t_min = self.start_var.get() * 60.0
         t_max = self.end_var.get() * 60.0
 
         self.view3d.update_times(t_min, t_max)
