@@ -1,14 +1,11 @@
 import tkinter as tk
 import traceback
-from tkinter import ttk
+import ttkbootstrap as ttk
 import matplotlib
 
 matplotlib.use("TkAgg")
 matplotlib.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
-import matplotlib.pyplot as plt
-
-plt.style.use('dark_background')
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -16,7 +13,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import numpy as np
 
 from SatSim.constants import earth
-from SatSim.view.palette import electric_sapphire
+from SatSim.view.plot import Plot
 
 import traceback
 
@@ -30,8 +27,10 @@ class OrbitView:
         self.args = args
         self.kwargs = kwargs
 
+        colors = ttk.Style().colors
+
         self.full_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
-                                      color="gray", linewidth=0.7, alpha=0.4, label="Full simulated path")
+                                      color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
         self.timed_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
                                        *args, **kwargs)
         self.marker = self.ax.scatter(*pos[-1], *args, **kwargs)
@@ -82,16 +81,10 @@ class View3D(ttk.Frame):
         """
         super().__init__(parent)
 
-        with plt.rc_context({'axes3d.mouserotationstyle': 'azel'}):
-            self.figure = Figure(figsize=(6.5, 6.5), dpi=100)
-            self.ax = self.figure.add_subplot(111, projection="3d")
+        self.plot = Plot(self, projection='3d')
+        self.plot.pack(fill='both', expand=True)
 
-            self.canvas = FigureCanvasTkAgg(self.figure, master=self)
-            self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-        toolbar = NavigationToolbar2Tk(self.canvas, self, pack_toolbar=False)
-        toolbar.update()
-        toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.ax = self.plot.ax
 
         self._draw_earth()
 
@@ -104,12 +97,13 @@ class View3D(ttk.Frame):
         """
         Draw a translucent sphere representing the Earth.
         """
+        palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
         u, v = np.mgrid[0:2 * np.pi:40j, 0:np.pi:20j]
         x = earth.radius * np.cos(u) * np.sin(v)
         y = earth.radius * np.sin(u) * np.sin(v)
         z = earth.radius * np.cos(v)
         self._earth_surface = self.ax.plot_surface(
-            x, y, z, color=electric_sapphire, alpha=0.35, linewidth=0, antialiased=True
+            x, y, z, color=ttk.Style().colors.inputfg, alpha=0.35, linewidth=0, antialiased=True
         )
         self.ax.set_aspect("equal")
         self.ax.set_box_aspect([1, 1, 1])
@@ -130,7 +124,7 @@ class View3D(ttk.Frame):
         self.ax.set_zlim3d(centers[2] - half_range, centers[2] + half_range)
         self.ax.set_box_aspect([1, 1, 1])
 
-        self.canvas.draw_idle()
+        self.plot.refresh()
 
     def update_times(self, t_min, t_max):
         self.t_min = t_min

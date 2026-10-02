@@ -1,16 +1,16 @@
 import tkinter as tk
+import ttkbootstrap as ttk
 
 from SatSim.app import App
 
 
 def main():
-    root = tk.Tk()
-    root.title("Satellite Orbit Simulator")
-    root.geometry("1000x800")
+    # See https://www.ttkbootstrap.org/en/latest/themes.html for themes
+    app = ttk.App(title="Satellite Orbit Simulator", theme="vapor-dark")
 
-    app = App(root)
+    App(app)
 
-    root.mainloop()
+    app.mainloop()
 
 
 # Press the green button in the gutter to run the script.

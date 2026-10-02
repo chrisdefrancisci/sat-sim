@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+import ttkbootstrap as ttk
 
 from SatSim.view import view_3d
 from SatSim.model.simulate import Simulate
@@ -13,9 +13,10 @@ class App(ttk.Frame):
         self.pack(fill=tk.BOTH, expand=True)
 
         self.view_3d = view_3d.View3D(self)
-        self.view_3d.pack(fill=tk.BOTH, expand=True)
+        self.view_3d.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.rowconfigure(0, weight=1)
 
         self.sim = Simulate()
 
         self.controller = SimController(self, self.sim, self.view_3d)
-        self.controller.pack(fill=tk.BOTH, expand=True)
+        self.controller.grid(row=1, column=0, padx=5, pady=5)

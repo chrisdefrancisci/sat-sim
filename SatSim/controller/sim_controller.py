@@ -1,11 +1,11 @@
 import tkinter as tk
-from tkinter import ttk
+import ttkbootstrap as ttk
 
 from SatSim.controller.label_entry import LabelEntryRow
 from SatSim.model import simulate
 from SatSim.model.orbit_model import OrbitModel
 from SatSim.model.simulate import Simulate
-from SatSim.view import palette
+# from SatSim.view import palette
 from SatSim.view.view_3d import View3D
 
 
@@ -83,9 +83,10 @@ class SimController(ttk.Frame):
         self.model.orbits[self.target_idx].set_params(**(self.target_entry.get_values()))
 
         self.model.run_simulation()
+        palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
         for idx in [self.chaser_idx, self.target_idx]:
             full_t, full_pos = self.model.get_full_positions(idx)
-            self.view3d.add_orbit(full_t, full_pos, color=palette.palette[idx])
+            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)])
 
         self.total_duration = self.model.get_total_duration()
         self.start_scale.configure(to=self.total_duration / 60)
