@@ -1,10 +1,6 @@
 import tkinter as tk
 import traceback
 import ttkbootstrap as ttk
-import matplotlib
-
-matplotlib.use("TkAgg")
-matplotlib.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -32,7 +28,7 @@ class OrbitView:
         self.full_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
                                       color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
         self.timed_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
-                                       *args, **kwargs)
+                                       linewidth=3.0, *args, **kwargs)
         self.marker = self.ax.scatter(*pos[-1], *args, **kwargs)
 
     def clear(self):
