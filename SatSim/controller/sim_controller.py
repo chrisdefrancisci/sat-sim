@@ -63,10 +63,14 @@ class SimController(ttk.Frame):
         self.end_label = ttk.Label(self, text=f"{self.end_var.get():.1f}")
         self.end_label.grid(row=2, column=2, sticky="w")
 
-        self.chaser_entry = LabelEntryRow(self, self.model.orbits[self.chaser_idx].get_params().keys())
+        self.chaser_entry = LabelEntryRow(self, self.model.orbits[self.chaser_idx].get_params().keys(), 
+                                          ['Altitude (km)', 'Inclination (deg)', 'Eccentricity'],
+                                          ['Very low Earth orbit < 450 km\nLow Earth orbit < 2,000 km\nMedium Earth orbit < 35,786 km\nGeosynchronous orbit = 35,786 km\nHigh Earth orbit >35,786 km', None, None])
         self.chaser_entry.grid(row=3, column=0, sticky="ew")
         self.chaser_entry.set_values(self.model.orbits[self.chaser_idx].get_params())
-        self.target_entry = LabelEntryRow(self, self.model.orbits[self.target_idx].get_params().keys())
+        self.target_entry = LabelEntryRow(self, self.model.orbits[self.target_idx].get_params().keys(), 
+                                          ['Altitude (km)', 'Inclination (deg)', 'Eccentricity'],
+                                          ['Very low Earth orbit < 450 km\nLow Earth orbit < 2,000 km\nMedium Earth orbit < 35,786 km\nGeosynchronous orbit = 35,786 km\nHigh Earth orbit >35,786 km', None, None])
         self.target_entry.grid(row=4, column=0, sticky="ew")
         self.target_entry.set_values(self.model.orbits[self.target_idx].get_params())
 
