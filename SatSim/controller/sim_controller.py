@@ -1,7 +1,7 @@
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from SatSim.controller.label_entry import LabelEntryRow
+from SatSim.controller.orbit_entry import OrbitEntry
 from SatSim.model import simulate
 from SatSim.model.orbit_model import OrbitModel
 from SatSim.model.simulate import Simulate
@@ -63,14 +63,10 @@ class SimController(ttk.Frame):
         self.end_label = ttk.Label(self, text=f"{self.end_var.get():.1f}")
         self.end_label.grid(row=2, column=2, sticky="w")
 
-        self.chaser_entry = LabelEntryRow(self, self.model.orbits[self.chaser_idx].get_params().keys(), 
-                                          ['Altitude (km)', 'Inclination (deg)', 'Eccentricity'],
-                                          ['Very low Earth orbit < 450 km\nLow Earth orbit < 2,000 km\nMedium Earth orbit < 35,786 km\nGeosynchronous orbit = 35,786 km\nHigh Earth orbit >35,786 km', None, None])
+        self.chaser_entry = OrbitEntry(self)
         self.chaser_entry.grid(row=3, column=0, sticky="ew")
         self.chaser_entry.set_values(self.model.orbits[self.chaser_idx].get_params())
-        self.target_entry = LabelEntryRow(self, self.model.orbits[self.target_idx].get_params().keys(), 
-                                          ['Altitude (km)', 'Inclination (deg)', 'Eccentricity'],
-                                          ['Very low Earth orbit < 450 km\nLow Earth orbit < 2,000 km\nMedium Earth orbit < 35,786 km\nGeosynchronous orbit = 35,786 km\nHigh Earth orbit >35,786 km', None, None])
+        self.target_entry = OrbitEntry(self)
         self.target_entry.grid(row=4, column=0, sticky="ew")
         self.target_entry.set_values(self.model.orbits[self.target_idx].get_params())
 
@@ -88,9 +84,10 @@ class SimController(ttk.Frame):
 
         self.model.run_simulation()
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
+        labels = ['Chaser', 'Target']
         for idx in [self.chaser_idx, self.target_idx]:
             full_t, full_pos = self.model.get_full_positions(idx)
-            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)])
+            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=[labels[idx]])
 
         self.total_duration = self.model.get_total_duration()
         self.start_scale.configure(to=self.total_duration / 60)

@@ -136,6 +136,7 @@ class View3D(ttk.Frame):
         self.t_max = self.orbits[-1].times[-1]
 
         self.update_times(self.t_min, self.t_max)
+        # self.ax.legend()
         self._refresh()
 
     def clear(self):
