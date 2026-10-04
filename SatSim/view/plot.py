@@ -1,7 +1,14 @@
+"""
+Classes to use ttkbootstrap themes with plots
+"""
 import tkinter as tk
 import ttkbootstrap as ttk
 from mpl_toolkits.mplot3d import Axes3D
 from ttkbootstrap.constants import *
+import matplotlib
+
+matplotlib.use("TkAgg")
+matplotlib.rcParams['axes3d.mouserotationstyle'] = 'azel'
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import numpy as np

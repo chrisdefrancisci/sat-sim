@@ -9,6 +9,7 @@ class Simulate:
     def __init__(self):
         self.orbits: list[OrbitModel] = []
         self.orbit_events = []
+        self.maneuvers = []
         self.times = np.array([])
         self.states = np.array([])
 
@@ -21,17 +22,6 @@ class Simulate:
 
     def _get_max_period(self) -> float:
         return np.max([orbit.get_period() for orbit in self.orbits])
-
-    def add_orbit(self, orbit: OrbitModel, events: tuple | list = tuple()) -> int:
-        """
-
-        :param orbit:
-        :param events: Iterable of events to pass to the solver.
-        :return: The index of the orbit in the orbits list.
-        """
-        self.orbits.append(orbit)
-        self.orbit_events.append(events)
-        return len(self.orbits) - 1
 
     def run_simulation(self):
         r"""
@@ -51,6 +41,47 @@ class Simulate:
         )
         self.times = sol.t
         self.states = sol.y.T
+
+    def get_settings(self) -> dict:
+        """
+        Assembles a dictionary of simulation settings.
+        :return: Settings
+        """
+
+        def _get_default_orbit() -> dict:
+            """
+            Helper function for :code:`get_settings` to get a default orbit if none implemented.
+
+            Note that this must be kept in sync with OrbitModel.
+
+            :return: Orbit default settings dict.
+            """
+            return {"altitude_km": 600.0, "inclination_deg": 60, "eccentricity": 0.0}
+
+        settings = {}
+        orbits = {}
+        # Orbits only meaningful right now if there is a target and a chaser
+        if len(self.orbits) >= 2:
+            orbits["chaser"] = self.orbits[0].get_params()
+            orbits["target"] = self.orbits[1].get_params()
+        else:
+            orbits["chaser"] = _get_default_orbit()
+            orbits["target"] = _get_default_orbit()
+
+        settings["orbits"] = orbits
+        settings["maneuvers"] = self.maneuvers
+
+        return settings
+
+    def load_settings(self, settings) -> None:
+        """
+        Takes a dictionary of simulation settings and stores it as the simulation parameters.
+        :param settings: Simulation settings
+        """
+        self.orbits = []
+        self.orbits.append(OrbitModel(**settings["orbits"]["chaser"]))
+        self.orbits.append(OrbitModel(**settings["orbits"]["target"]))
+        self.maneuvers = settings["maneuvers"]
 
     def get_total_duration(self) -> float:
         """

@@ -11,18 +11,15 @@ from SatSim.view.view_3d import View3D
 
 class SimController(ttk.Frame):
     """
-
+    Runs the simulation and distributes the results to different plots.
     """
 
     def __init__(self, parent, model: Simulate, view3d: View3D, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
-        self.chaser_idx = model.add_orbit(OrbitModel())
-        self.target_idx = model.add_orbit(OrbitModel())
-
         self.view3d = view3d
 
-        self.total_duration = 0
+        self.total_duration = ttk.DoubleVar(value=0)
 
         # Both start_var and end_var will be in min
         self.start_var = tk.DoubleVar(value=0.0)
@@ -34,12 +31,12 @@ class SimController(ttk.Frame):
     def _build_widgets(self):
         info = ttk.Label(
             self,
-            text=f"Total simulated span ≈ {self.total_duration / 60:.1f} min",
+            text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min",
             font=("TkDefaultFont", 10, "italic"),
         )
         info.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
-        total_min = self.total_duration / 60.0
+        total_min = self.total_duration.get() / 60.0
 
         # --- Start time slider ---
         ttk.Label(self, text="Start time (min):").grid(row=1, column=0, sticky="w")
@@ -63,13 +60,6 @@ class SimController(ttk.Frame):
         self.end_label = ttk.Label(self, text=f"{self.end_var.get():.1f}")
         self.end_label.grid(row=2, column=2, sticky="w")
 
-        self.chaser_entry = OrbitEntry(self)
-        self.chaser_entry.grid(row=3, column=0, sticky="ew")
-        self.chaser_entry.set_values(self.model.orbits[self.chaser_idx].get_params())
-        self.target_entry = OrbitEntry(self)
-        self.target_entry.grid(row=4, column=0, sticky="ew")
-        self.target_entry.set_values(self.model.orbits[self.target_idx].get_params())
-
         button_row = ttk.Frame(self)
         button_row.grid(row=5, column=0, columnspan=3, pady=(10, 0), sticky="w")
         ttk.Button(button_row, text="Run Simulation",
@@ -79,13 +69,11 @@ class SimController(ttk.Frame):
 
     def _run(self):
         self.view3d.clear()
-        self.model.orbits[self.chaser_idx].set_params(**(self.chaser_entry.get_values()))
-        self.model.orbits[self.target_idx].set_params(**(self.target_entry.get_values()))
 
         self.model.run_simulation()
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
         labels = ['Chaser', 'Target']
-        for idx in [self.chaser_idx, self.target_idx]:
+        for idx in range(0, len(self.model.orbits)):
             full_t, full_pos = self.model.get_full_positions(idx)
             self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=[labels[idx]])
 
