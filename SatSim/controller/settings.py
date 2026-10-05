@@ -6,6 +6,13 @@ from SatSim.controller.orbit_entry import OrbitEntry
 
 
 class SatelliteSettings(ttk.Frame):
+    """
+    Options for the target and chaser satellites.
+
+    The target satellite will only have orbit parameters, while the chaser satellite will have initial orbit parameters
+    and sensor and thruster parameters.
+    """
+
     def __init__(self, parent, settings=None):
         super().__init__(parent)
         chaser_frame = ttk.LabelFrame(self, text="Chaser")
@@ -30,21 +37,63 @@ class SatelliteSettings(ttk.Frame):
 
 
 class HohmannSettings(ttk.Frame):
-    def __init__(self, parent, on_save, settings=None):
+    def __init__(self, parent):
         super().__init__(parent)
         ttk.Label(self, text="Hohmann Settings").pack(fill="both", expand=True)
 
+    def load_settings(self) -> None:
+        pass
+
+    def get_settings(self) -> dict:
+        return {"radius_final": 1000.0}
+
 
 class BiellipticSettings(ttk.Frame):
-    def __init__(self, parent, on_save, settings=None):
+    def __init__(self, parent):
         super().__init__(parent)
         ttk.Label(self, text="Bi-Elliptic Settings").pack(fill="both", expand=True)
 
+    def load_settings(self) -> None:
+        pass
+
+    def get_settings(self) -> dict:
+        return {"radius_inter": 10000.0, "radius_final": 1000.0}
+
 
 class ManeuverSettings(ttk.Frame):
+    PAGES = {
+        "Hohmann": HohmannSettings,
+        "Bielliptic": BiellipticSettings
+    }
+
     def __init__(self, parent, on_save, settings=None):
         super().__init__(parent)
-        ttk.Label(self, text="Maneuver Settings").pack(fill="both", expand=True)
+
+        self.page_name = ttk.StringVar(value=list(self.PAGES.keys())[0])
+        ttk.OptionMenu(self, self.page_name, self.page_name.get(),
+                       *list(self.PAGES.keys()), command=self.show_page
+                       ).grid(row=0, column=0, sticky="", padx=5, pady=5)
+        self.content = ttk.Frame(self)
+        self.content.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        self.current_page = self.PAGES[self.page_name.get()](self.content)
+        self.current_page.pack(fill="both", expand=True)
+        self.rowconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1)
+
+    def show_page(self, name) -> None:
+        if self.current_page is not None:
+            self.current_page.destroy()
+
+        # Build and show the new one
+        self.current_page = self.PAGES[name](self.content)
+        self.current_page.pack(fill="both", expand=True)
+
+    def load_settings(self, settings) -> None:
+        self.page_name.set(settings["type"].capitalize())
+        self.show_page(self.page_name)
+
+    def get_settings(self) -> dict:
+        return {"type": self.page_name.get().lower(), "params": self.current_page.get_settings()}
 
 
 class SettingsDialog(ttk.Toplevel):
