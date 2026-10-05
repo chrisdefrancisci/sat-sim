@@ -100,9 +100,9 @@ class OrbitModel:
             Note that this is a row vector for ease of use with :code:`solve_ivp`.
         """
 
-        semimajor = earth.radius + self.altitude_km  # semimajor axis, a
+        r_p = earth.radius + self.altitude_km
+        semimajor = r_p / (1.0 - self.eccentricity)  # semimajor axis, a
         # Pos, vel at perigee, lying along the x-axis before inclination tilt.
-        r_p = semimajor * (1.0 - self.eccentricity)
         v_p = np.sqrt(earth.mu * (2.0 / r_p - 1.0 / semimajor))  # vis-viva equation
         pos = np.array([r_p, 0.0, 0.0])
         vel = np.array([0.0, v_p, 0.0])
@@ -122,5 +122,5 @@ class OrbitModel:
         :see also: Vallado, Eq 1-26, pg 30
         :return: Period, :math:`s`
         """
-        semimajor = earth.radius + self.altitude_km  # semimajor axis, a
+        semimajor = (earth.radius + self.altitude_km) / (1.0 - self.eccentricity)
         return 2 * np.pi * np.sqrt(semimajor ** 3 / earth.mu)
