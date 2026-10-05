@@ -7,7 +7,7 @@ class DefaultManualEntry(ttk.Frame):
     """
     CUSTOM = "custom"
 
-    def __init__(self, parent, label, defaults: dict[str, float], *args, **kwargs):
+    def __init__(self, parent, defaults: dict[str, float], *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.defaults = defaults
 
@@ -15,20 +15,21 @@ class DefaultManualEntry(ttk.Frame):
         self.entry_text = ttk.StringVar()
 
         self.radiobuttons = {}
-        for idx, (key, value) in enumerate(self.defaults.items()):
+        for idx, key in enumerate(self.defaults.keys()):
             self.radiobuttons[key] = ttk.Radiobutton(self, text=key, variable=self.selection, value=key,
                                                      command=self._on_mode_change)
             self.radiobuttons[key].grid(row=0, column=idx, padx=(5, 0))
 
         self.custom_col = ttk.Frame(self)
-        self.custom_col.grid(row=0, column=len(self.defaults), padx=(5, 0))
+        self.custom_col.grid(row=0, sticky="ew", column=len(self.defaults), padx=(5, 0))
+        self.columnconfigure(len(self.defaults), weight=1)
 
         self.custom_radiobuttons = ttk.Radiobutton(self.custom_col, text="Custom:", variable=self.selection,
                                                    value=self.CUSTOM,
                                                    command=self._on_mode_change)
         self.custom_radiobuttons.pack(side="left")
         self.entry = ttk.Entry(self.custom_col, textvariable=self.entry_text, state="disabled")
-        self.entry.pack(side="left", padx=(5, 0))
+        self.entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
 
         self.entry.bind("<Button-1>", self._on_entry_click)
         self.entry_text.trace_add("write", lambda *_: self._validate())
@@ -64,17 +65,16 @@ class DefaultManualEntry(ttk.Frame):
                 float(self.entry_text.get())
             except (ValueError, TypeError):
                 valid = False
-            self.entry.configure(bootstyle="normal" if valid else "danger")
+            self.entry.configure(bootstyle="default" if valid else "danger")
 
-    def get(self) -> float:
+    def get(self) -> dict:
         """
         Gets the selected value.
-        :return: Selected value
+        :return: UI selection and the effective value
         """
-        if self.selection.get() == self.CUSTOM:
-            return float(self.entry_text.get())
-        else:
-            return self.defaults[self.selection.get()]
+        return {"selection": self.selection.get(), 
+                "effective_value": self.defaults[self.selection.get()] if 
+                self.selection != self.CUSTOM else float(self.entry_text.get())}
 
     def set(self, value, key=None) -> None:
         """

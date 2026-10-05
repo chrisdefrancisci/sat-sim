@@ -77,10 +77,10 @@ class SimController(ttk.Frame):
             full_t, full_pos = self.model.get_full_positions(idx)
             self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=[labels[idx]])
 
-        self.total_duration = self.model.get_total_duration()
-        self.start_scale.configure(to=self.total_duration / 60)
-        self.end_scale.configure(to=self.total_duration / 60)
-        self._set_range(0.0, self.total_duration / 60)
+        self.total_duration.set(self.model.get_total_duration())
+        self.start_scale.configure(to=self.total_duration.get() / 60)
+        self.end_scale.configure(to=self.total_duration.get() / 60)
+        self._set_range(0.0, self.total_duration.get() / 60)
 
     def _on_slide(self):
         # Enforce start <= end so the selected window is always valid.

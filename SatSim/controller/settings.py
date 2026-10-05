@@ -3,6 +3,7 @@ from typing import Any
 import ttkbootstrap as ttk
 
 from SatSim.controller.orbit_entry import OrbitEntry
+from SatSim.controller.defaults_manual_entry import DefaultManualEntry
 
 
 class SatelliteSettings(ttk.Frame):
@@ -13,7 +14,7 @@ class SatelliteSettings(ttk.Frame):
     and sensor and thruster parameters.
     """
 
-    def __init__(self, parent, settings=None):
+    def __init__(self, parent, settings):
         super().__init__(parent)
         chaser_frame = ttk.LabelFrame(self, text="Chaser")
         chaser_frame.pack(side="top", fill="both", expand=True)
@@ -39,13 +40,21 @@ class SatelliteSettings(ttk.Frame):
 class HohmannSettings(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        ttk.Label(self, text="Hohmann Settings").pack(fill="both", expand=True)
+        ttk.Label(self, text="Final Radius (km):").grid(row=0, column=0, padx=(5,0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"Target Orbit": 0.0})
+        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0,5))
+        
+        ttk.Label(self, text="Maneuver Time (s):").grid(row=1, column=0, padx=(5,0), sticky="e")
+        self.timeEntry = DefaultManualEntry(self, {"Immediate": 0.0, "Rendezvous": 0.0})
+        self.timeEntry.grid(row=1, column=1, sticky="ew", pady=(0,5))
 
-    def load_settings(self) -> None:
-        pass
+        self.columnconfigure(1, weight=1)
+
+    def load_settings(self, radius) -> None:
+        self.radiusEntry.set(radius)    
 
     def get_settings(self) -> dict:
-        return {"radius_final": 1000.0}
+        return {"radius_final": self.radiusEntry.get()}      
 
 
 class BiellipticSettings(ttk.Frame):
