@@ -41,11 +41,11 @@ class HohmannSettings(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         ttk.Label(self, text="Final Radius (km):").grid(row=0, column=0, padx=(5,0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"Target Orbit": 0.0})
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",])
         self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0,5))
         
         ttk.Label(self, text="Maneuver Time (s):").grid(row=1, column=0, padx=(5,0), sticky="e")
-        self.timeEntry = DefaultManualEntry(self, {"Immediate": 0.0, "Rendezvous": 0.0})
+        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0})
         self.timeEntry.grid(row=1, column=1, sticky="ew", pady=(0,5))
 
         self.columnconfigure(1, weight=1)
@@ -183,10 +183,12 @@ class SettingsDialog(ttk.Toplevel):
 
     def _center_on_parent(self):
         """
-        Helper method to center the window on its parent.
+        Helper method to center the window on its parent. 
+
+        Centered in the x direction, aligned to the top of the window in the y direction.
         """
         self.update_idletasks()
         p = self.parent
         x = p.winfo_rootx() + (p.winfo_width() - self.winfo_width()) // 2
-        y = p.winfo_rooty() + (p.winfo_height() - self.winfo_height()) // 2
+        y = p.winfo_rooty()
         self.geometry(f"+{x}+{y}")

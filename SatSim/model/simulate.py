@@ -62,8 +62,8 @@ class Simulate:
         orbits = {}
         # Orbits only meaningful right now if there is a target and a chaser
         if len(self.orbits) >= 2:
-            orbits["chaser"] = self.orbits[0].get_params()
-            orbits["target"] = self.orbits[1].get_params()
+            orbits["chaser"] = self.orbits[0].get()
+            orbits["target"] = self.orbits[1].get()
         else:
             orbits["chaser"] = _get_default_orbit()
             orbits["target"] = _get_default_orbit()

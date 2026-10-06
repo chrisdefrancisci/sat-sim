@@ -7,7 +7,7 @@ class DefaultManualEntry(ttk.Frame):
     """
     CUSTOM = "custom"
 
-    def __init__(self, parent, defaults: dict[str, float], *args, **kwargs):
+    def __init__(self, parent, defaults: dict[str, float], labels: list[str]|None = None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.defaults = defaults
 
@@ -15,8 +15,10 @@ class DefaultManualEntry(ttk.Frame):
         self.entry_text = ttk.StringVar()
 
         self.radiobuttons = {}
+        if labels == None or len(labels) != len(defaults.keys()):
+            labels = [key.capitalize() for key in defaults.keys()]
         for idx, key in enumerate(self.defaults.keys()):
-            self.radiobuttons[key] = ttk.Radiobutton(self, text=key, variable=self.selection, value=key,
+            self.radiobuttons[key] = ttk.Radiobutton(self, text=labels[idx], variable=self.selection, value=key,
                                                      command=self._on_mode_change)
             self.radiobuttons[key].grid(row=0, column=idx, padx=(5, 0))
 

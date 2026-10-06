@@ -33,11 +33,11 @@ class OrbitModel:
         ])
         self.rot = rot
 
-    def get_params(self):
+    def get(self):
         return {'altitude_km': self.altitude_km, 'inclination_deg': self.inclination_deg,
                 'eccentricity': self.eccentricity}
 
-    def set_params(self, **kwargs):
+    def set(self, **kwargs):
         if 'altitude_km' in kwargs:
             self.altitude_km = kwargs['altitude_km']
         if 'inclination_deg' in kwargs:
@@ -112,6 +112,25 @@ class OrbitModel:
         pos = self.rot @ pos
         vel = self.rot @ vel
         return np.concatenate([pos, vel])
+
+    def get_semimajor_axis(self) -> float:
+        r"""
+        Calculates the semimajor axis of the ellipse / radius of the circle
+        :return: Semimajor axis of the ellipse, ..math`a` (km)
+        """
+        r_p = earth.radius + self.altitude_km
+        semimajor = r_p / (1.0 - self.eccentricity)
+        return semimajor
+
+    def get_radius(self) -> float:
+        """
+        Helper function to get the radius if the orbit is circular.
+        
+        :return: Radius of the circular orbit, ..math`r` (km)
+        """
+        if self.eccentricity != 0.0:
+            raise ValueError(f"Orbit has eccentricity: {self.eccentricity}")
+        return self.get_semimajor_axis()
 
     def get_period(self) -> float:
         r"""
