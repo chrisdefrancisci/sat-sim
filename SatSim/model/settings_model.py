@@ -97,7 +97,7 @@ class HohmannModel:
         elif self.t_selection.get().lower() == "immediate":
             return 0
         elif self.t_selection.get().lower() == "rendezvous":
-            # TODO: implement Vallado Algorithm 45: Circular Coplanar Phasing (Different Orbits) pg 397
+            # TODO: implement Vallado Algorithm 45: Circular Coplanar Phasing (Different Orbits) pg 367
             raise ValueError(f"{self.t_selection.get()} Not yet implemented") 
         else:
             raise ValueError(f"Unknown option for time: {self.t_selection.get()}") 
@@ -112,11 +112,11 @@ class HohmannModel:
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final)**3 / earth.mu) / 2
+        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final)**3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
-        """
+        r"""
         Gets the magnitude of the first impulsive burn. 
         The sign indicates if the burn is in the direction of velocity (positive) or opposite the direction of 
         velocity (negative).
@@ -127,15 +127,13 @@ class HohmannModel:
         """
         r1 = self.chaser_model.to_config().radius
         r2 = self.r_final
-        sign = 1 if r2 > r1 else -1
-        return sign * np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
+        return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
     
     @property
     def delta_v_2(self) -> float:
         r1 = self.chaser_model.to_config().radius
         r2 = self.r_final
-        sign = 1 if r2 > r1 else -1
-        return sign * np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
+        return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
     @property
     def delta_v_total(self) -> float:
@@ -156,8 +154,8 @@ class HohmannModel:
 
     def to_config(self) -> list[ImpulseConfig]:
         return [
-            ImpulseConfig(time_offset=self.t_start, delta_v=self.delta_v_1), 
-            ImpulseConfig(time_offset=self.t_start + self.delta_t, delta_v=self.delta_v_2)
+            ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1), 
+            ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
 
@@ -220,4 +218,7 @@ class SettingsModel:
     def to_config(self) -> SimConfig:
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
-        return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=self.orbit_maneuvers)
+        maneuvers:list[ImpulseConfig] =[]
+        for m in self.orbit_maneuvers:
+            maneuvers.extend(m.to_config())
+        return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)

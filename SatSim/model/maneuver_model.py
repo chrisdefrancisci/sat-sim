@@ -6,7 +6,7 @@ from SatSim.constants import earth
 
 @dataclass(frozen=True)
 class ImpulseConfig:
-    time_offset: float
+    time: float
     r"""
     Time from previous impulse or maneuver.
     """
@@ -46,7 +46,7 @@ class OrbitConfig:
     @property
     def radius(self) -> float:
         """
-        Helper function to get the radius if the orbit is circular.
+        Helper to ensure circular orbit.
         
         :return: Radius of the circular orbit, ..math`r` (km)
         """
