@@ -1,11 +1,7 @@
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from SatSim.controller.orbit_entry import OrbitEntry
-from SatSim.model import simulate
-from SatSim.model.orbit_model import OrbitModel
 from SatSim.model.simulate import Simulate
-# from SatSim.view import palette
 from SatSim.view.view_3d import View3D
 
 

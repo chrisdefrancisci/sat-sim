@@ -13,7 +13,7 @@ class OrbitEntry(LabelEntryRow):
     Helper class derived from LabelEntryRow for entering orbit parameters with tooltip descriptions.
     """
 
-    def __init__(self, parent, entry_width=15, padding=5, **kwargs):
+    def __init__(self, parent, **kwargs):
         """
         Docstring for __init__
         

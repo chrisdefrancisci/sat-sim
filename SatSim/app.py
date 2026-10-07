@@ -3,9 +3,9 @@ import ttkbootstrap as ttk
 
 from SatSim.view import view_3d
 from SatSim.model.simulate import Simulate
+from SatSim.model.settings_model import SettingsModel
 from SatSim.controller.sim_controller import SimController
 from SatSim.controller.toolbar import Toolbar
-from SatSim.controller.settings import SettingsDialog
 
 
 class App(ttk.Frame):
@@ -15,10 +15,11 @@ class App(ttk.Frame):
         self.pack(fill=tk.BOTH, expand=True)
 
         self.view_3d = view_3d.View3D(self)
+        self.settings = SettingsModel()
 
         self.sim = Simulate()
 
-        self.toolbar = Toolbar(self, self.sim.get_settings, self.sim.load_settings)
+        self.toolbar = Toolbar(self, self.settings)
         self.controller = SimController(self, self.sim, self.view_3d)
 
         self.toolbar.grid(row=0, column=0, sticky="ew", padx=5, pady=5)

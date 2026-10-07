@@ -2,13 +2,13 @@ import tkinter as tk
 import ttkbootstrap as ttk
 
 from SatSim.controller.settings import SettingsDialog
+from SatSim.model.settings_model import SettingsModel
 
 
 class Toolbar(ttk.Frame):
-    def __init__(self, parent, get_settings, load_settings, *args, **kwargs):
+    def __init__(self, parent, settings_model:SettingsModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.get_settings = get_settings
-        self.load_settings = load_settings
+        self.settings_model = settings_model
 
         self.pack(fill=tk.BOTH, expand=True)
 
@@ -24,5 +24,5 @@ class Toolbar(ttk.Frame):
         ttk.ToolTip(self.save, text="Save Config", bootstyle="info")
 
     def open_settings(self):
-        dialog = SettingsDialog(self, self.get_settings(), on_save=self.load_settings)
+        dialog = SettingsDialog(self, self.settings_model)
         self.wait_window(dialog)  # pause here until the popup closes

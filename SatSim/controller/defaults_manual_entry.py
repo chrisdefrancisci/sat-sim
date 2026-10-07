@@ -1,5 +1,5 @@
+import tkinter as tk
 import ttkbootstrap as ttk
-
 
 class DefaultManualEntry(ttk.Frame):
     """
@@ -8,13 +8,12 @@ class DefaultManualEntry(ttk.Frame):
     CUSTOM = "custom"
 
     def __init__(self, parent, defaults: dict[str, float], labels: list[str]|None = None, *args, **kwargs):
+        self.selection = kwargs.pop("selection_var", ttk.StringVar(value=str(list(defaults.values())[0])))
+        self.entry_text = kwargs.pop("entry_var",ttk.DoubleVar())
         super().__init__(parent, *args, **kwargs)
+
         self.defaults = defaults
-
-        self.selection = ttk.StringVar(value=str(list(self.defaults.values())[0]))
-        self.entry_text = ttk.StringVar()
-
-        self.radiobuttons = {}
+        self.radiobuttons:dict[str,ttk.Radiobutton] = {}
         if labels == None or len(labels) != len(defaults.keys()):
             labels = [key.capitalize() for key in defaults.keys()]
         for idx, key in enumerate(self.defaults.keys()):
@@ -35,6 +34,8 @@ class DefaultManualEntry(ttk.Frame):
 
         self.entry.bind("<Button-1>", self._on_entry_click)
         self.entry_text.trace_add("write", lambda *_: self._validate())
+
+        self._on_mode_change()
 
     def _on_mode_change(self) -> None:
         """
@@ -65,7 +66,7 @@ class DefaultManualEntry(ttk.Frame):
             valid = True
             try:
                 float(self.entry_text.get())
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, tk.TclError):
                 valid = False
             self.entry.configure(bootstyle="default" if valid else "danger")
 

@@ -1,7 +1,7 @@
+from dataclasses import dataclass
 import numpy as np
 
 from SatSim.constants import earth
-
 
 class OrbitModel:
     r""" Orbit model
@@ -112,34 +112,3 @@ class OrbitModel:
         pos = self.rot @ pos
         vel = self.rot @ vel
         return np.concatenate([pos, vel])
-
-    def get_semimajor_axis(self) -> float:
-        r"""
-        Calculates the semimajor axis of the ellipse / radius of the circle
-        :return: Semimajor axis of the ellipse, ..math`a` (km)
-        """
-        r_p = earth.radius + self.altitude_km
-        semimajor = r_p / (1.0 - self.eccentricity)
-        return semimajor
-
-    def get_radius(self) -> float:
-        """
-        Helper function to get the radius if the orbit is circular.
-        
-        :return: Radius of the circular orbit, ..math`r` (km)
-        """
-        if self.eccentricity != 0.0:
-            raise ValueError(f"Orbit has eccentricity: {self.eccentricity}")
-        return self.get_semimajor_axis()
-
-    def get_period(self) -> float:
-        r"""
-        Calculates the period of the orbit using Kepler's third law.
-
-        .. math:: P = 2\pi \sqrt{\frac{a^3}{\mu}}
-
-        :see also: Vallado, Eq 1-26, pg 30
-        :return: Period, :math:`s`
-        """
-        semimajor = (earth.radius + self.altitude_km) / (1.0 - self.eccentricity)
-        return 2 * np.pi * np.sqrt(semimajor ** 3 / earth.mu)
