@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from SatSim.constants import earth
+from SatSim.model.maneuver_model import OrbitConfig
 
 class OrbitModel:
     r""" Orbit model
@@ -11,8 +12,7 @@ class OrbitModel:
 
     """
 
-    def __init__(self, altitude_km=400.0, inclination_deg=51.6,
-                 eccentricity=0.0):
+    def __init__(self, orbit_config:OrbitConfig):
         """
 
 
@@ -20,37 +20,7 @@ class OrbitModel:
         :param inclination_deg:
         :param eccentricity:
         """
-        self.altitude_km = altitude_km
-        self.inclination_deg = inclination_deg
-        self.eccentricity = eccentricity
-
-        # Create rotation matrix
-        inc = np.radians(self.inclination_deg)
-        rot = np.array([
-            [1, 0, 0],
-            [0, np.cos(inc), -np.sin(inc)],
-            [0, np.sin(inc), np.cos(inc)],
-        ])
-        self.rot = rot
-
-    def get(self):
-        return {'altitude_km': self.altitude_km, 'inclination_deg': self.inclination_deg,
-                'eccentricity': self.eccentricity}
-
-    def set(self, **kwargs):
-        if 'altitude_km' in kwargs:
-            self.altitude_km = kwargs['altitude_km']
-        if 'inclination_deg' in kwargs:
-            self.inclination_deg = kwargs['inclination_deg']
-            inc = np.radians(self.inclination_deg)
-            rot = np.array([
-                [1, 0, 0],
-                [0, np.cos(inc), -np.sin(inc)],
-                [0, np.sin(inc), np.cos(inc)],
-            ])
-            self.rot = rot
-        if 'eccentricity' in kwargs:
-            self.eccentricity = kwargs['eccentricity']
+        self.config = orbit_config
 
     @staticmethod
     def dynamics(t, state: np.ndarray) -> np.ndarray:
@@ -100,15 +70,15 @@ class OrbitModel:
             Note that this is a row vector for ease of use with :code:`solve_ivp`.
         """
 
-        r_p = earth.radius + self.altitude_km
-        semimajor = r_p / (1.0 - self.eccentricity)  # semimajor axis, a
+        r_p = earth.radius + self.config.altitude_km
+        
         # Pos, vel at perigee, lying along the x-axis before inclination tilt.
-        v_p = np.sqrt(earth.mu * (2.0 / r_p - 1.0 / semimajor))  # vis-viva equation
+        v_p = np.sqrt(earth.mu * (2.0 / r_p - 1.0 / self.config.semimajor))  # vis-viva equation
         pos = np.array([r_p, 0.0, 0.0])
         vel = np.array([0.0, v_p, 0.0])
 
         # Tilt the whole orbital plane by the inclination about the x-axis,
         # so the orbit is a great circle (or ellipse) crossing the equator.
-        pos = self.rot @ pos
-        vel = self.rot @ vel
+        pos = self.config.rot @ pos
+        vel = self.config.rot @ vel
         return np.concatenate([pos, vel])

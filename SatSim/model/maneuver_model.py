@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
-import ttkbootstrap as ttk
 
 from SatSim.constants import earth
-from SatSim.model.orbit_model import OrbitModel
 
 
 @dataclass(frozen=True)
@@ -67,3 +65,10 @@ class OrbitConfig:
         :return: Period, :math:`s`
         """
         return 2 * np.pi * np.sqrt(self.semimajor ** 3 / earth.mu)
+
+    
+@dataclass(frozen=True)
+class SimConfig:
+    target_orbit: OrbitConfig
+    chaser_orbit: OrbitConfig
+    maneuvers: list[ImpulseConfig]

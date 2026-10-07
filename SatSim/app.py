@@ -17,7 +17,7 @@ class App(ttk.Frame):
         self.view_3d = view_3d.View3D(self)
         self.settings = SettingsModel()
 
-        self.sim = Simulate()
+        self.sim = Simulate(self.settings)
 
         self.toolbar = Toolbar(self, self.settings)
         self.controller = SimController(self, self.sim, self.view_3d)

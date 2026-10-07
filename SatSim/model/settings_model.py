@@ -3,7 +3,7 @@ import ttkbootstrap as ttk
 import numpy as np
 
 from SatSim.constants import earth
-from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig
+from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig, SimConfig
 
 class OrbitModel:
     r"""
@@ -217,9 +217,7 @@ class SettingsModel:
         result.orbit_maneuvers = copy.deepcopy(self.orbit_maneuvers, memo)
         return result
 
-    def get(self) -> dict:
+    def to_config(self) -> SimConfig:
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
-
-        return {"orbits" : {"target": target, "chaser": chaser},
-                "maneuvers": [man.to_config() for man in self.orbit_maneuvers]}
+        return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=self.orbit_maneuvers)
