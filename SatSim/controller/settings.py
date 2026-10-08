@@ -79,14 +79,53 @@ class HohmannSettings(ttk.Frame):
 
 class BiellipticSettings(ttk.Frame):
     def __init__(self, parent, model:BiellipticModel, *args, **kwargs):
-        super().__init__(parent)
-        ttk.Label(self, text="Bi-Elliptic Settings").pack(fill="both", expand=True)
+        super().__init__(parent, *args, **kwargs)
+        self.model = model
+        ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5,0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",], selection_var=model.ratio_final_selection, entry_var=model.ratio_final_custom)
+        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0,5))
+        
+        ttk.Label(self, text="Final Radius Ratio:").grid(row=1, column=0, padx=(5,0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",], selection_var=model.ratio_final_selection, entry_var=model.ratio_final_custom)
+        self.radiusEntry.grid(row=1, column=1, sticky="ew", pady=(0,5))
+        
+        ttk.Label(self, text="Maneuver Time (s):").grid(row=2, column=0, padx=(5,0), sticky="e")
+        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0}, selection_var=model.t_selection, entry_var=model.t_custom)
+        self.timeEntry.grid(row=2, column=1, sticky="ew", pady=(0,5))
 
-    def load_settings(self) -> None:
-        pass
+        self.columnconfigure(1, weight=1)
 
-    def get_settings(self) -> dict:
-        return {"radius_inter": 10000.0, "radius_final": 1000.0}
+        result_row = ttk.Frame(self)
+        result_row.grid(row=3, column=1, columnspan=2, sticky="ew")
+        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5,0), pady=5)
+        self.delta_v_total = ttk.StringVar(value="Unknown")
+        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="(km/s)").pack(side="left", padx=5, pady=5)
+        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5,0), pady=5)
+        self.delta_t_total = ttk.StringVar(value="Unknown")
+        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="(s)").pack(side="left", padx=5, pady=5)
+
+        # Register the callback and set the "view" - populate the calculated values
+        self._traces = model.register_cb(self.refresh)
+        self.refresh()
+        # Remove traces when this page is destroyed.
+        self.bind("<Destroy>", self._on_destroy)
+
+    def refresh(self, *_):
+        """
+        Callback to handle any changes in the Hohmann settings model.
+        :param _: Description
+        """
+        self.delta_v_total.set(str(self.model.delta_v_total))
+        self.delta_t_total.set(str(self.model.delta_t))
+
+    def _on_destroy(self, event):
+        # <Destroy> event also fires for child widgets; only react to this frame.
+        if event.widget is not self:
+            return
+        for var, trace_id in self._traces:
+            var.trace_remove("write", trace_id)
 
 
 class ManeuverSettings(ttk.Frame):
@@ -159,8 +198,11 @@ class SettingsDialog(ttk.Toplevel):
         self.body.columnconfigure(0, weight=1)
         self.notebook = ttk.Notebook(self.body)
         self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.status_text = ttk.Label(self.body, width=50)
+        self.status_text.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
         buttons = ttk.Frame(self.body)
-        buttons.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+        buttons.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
         ttk.Button(buttons, icon="plus-circle", text="Add Maneuver", bootstyle="info",
                    command=self._add_maneuver).pack(
             side="left", padx=(5, 0)
@@ -203,6 +245,7 @@ class SettingsDialog(ttk.Toplevel):
         self.maneuver_settings.append(ManeuverSettings.create_new(self.notebook, self.settings))
         self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
         self.remove.state(["!disabled"])
+        self.status_text.config(text="Maneuver Added", bootstyle="info")
 
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
@@ -210,6 +253,7 @@ class SettingsDialog(ttk.Toplevel):
             self.notebook.forget(active_index)
         if self.notebook.index("end") <= 1:
             self.remove.state(["disabled"])
+        self.status_text.config(text="Maneuver Removed", bootstyle="warning")
 
     def _build_ui(self):
         self.notebook.add(self.satellite_settings, text="Satellite Settings")
