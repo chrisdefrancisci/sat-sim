@@ -53,7 +53,7 @@ class Simulate:
         t0 = 0.0
         y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
 
-        if (self.maneuvers[0].time <= dt):
+        if len(self.maneuvers) > 0 and (self.maneuvers[0].time <= dt):
             man = self.maneuvers.pop(0) # remove maneuver from list
             # Apply impulsive delta v in the direction of the current velocity vector
             v_norm = y0[9:12] / np.linalg.norm(y0[9:12])

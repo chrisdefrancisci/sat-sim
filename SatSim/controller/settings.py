@@ -18,16 +18,14 @@ class SatelliteSettings(ttk.Frame):
 
     def __init__(self, parent, target_model: OrbitModel, chaser_model: OrbitModel):
         super().__init__(parent)
-        chaser_frame = ttk.LabelFrame(self, text="Chaser")
-        chaser_frame.pack(side="top", fill="both", expand=True, pady=5)
-        self.chaser_entry = OrbitEntry(chaser_frame, variables=[chaser_model.altitude_km, chaser_model.inclination_deg,
-                                                                chaser_model.eccentricity])
-        self.chaser_entry.pack(side="top", fill="both", expand=True)
         target_frame = ttk.LabelFrame(self, text="Target")
         target_frame.pack(side="top", fill="both", expand=True, pady=5)
-        self.target_entry = OrbitEntry(target_frame, variables=[target_model.altitude_km, target_model.inclination_deg,
-                                                                target_model.eccentricity])
+        self.target_entry = OrbitEntry(target_frame, target_model)
         self.target_entry.pack(side="top", fill="both", expand=True)
+        chaser_frame = ttk.LabelFrame(self, text="Chaser")
+        chaser_frame.pack(side="top", fill="both", expand=True, pady=5)
+        self.chaser_entry = OrbitEntry(chaser_frame, chaser_model)
+        self.chaser_entry.pack(side="top", fill="both", expand=True)
 
 
 class HohmannSettings(ttk.Frame):

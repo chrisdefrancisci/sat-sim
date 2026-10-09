@@ -52,36 +52,10 @@ class OrbitModel:
         r"""
         Initial state of the orbit.
 
-        Calculates the semimajor axis, :math:`a`, and initializes position and velocity to be at perigee.
-
-        Uses the definition of eccentricity to convert between :math:`r_p` and :math:`a`.
-
-        .. math::
-            \begin{aligned}
-                e &= \frac{c}{a} \\
-                r_p &= a - c \\
-                r_p &= a (1 - e)
-            \end{aligned}
-
-        Uses the vis-viva equation for to determine velocity at perigee.
-
-        .. math::
-            v^2 = \mu (\frac{2}{|r|} - \frac{1}{a})
-
-        :see also: Vallado, Eq 1-2, pg 14; Eq 1-22, pg 27; Eq 1-30, pg 32
         :return: State in :math:`km`, :math:`\frac{km}{s}`.
             Note that this is a row vector for ease of use with :code:`solve_ivp`.
         """
 
-        r_p = earth.radius + self.config.altitude_km
-
-        # Pos, vel at perigee, lying along the x-axis before inclination tilt.
-        v_p = np.sqrt(earth.mu * (2.0 / r_p - 1.0 / self.config.semimajor))  # vis-viva equation
-        pos = np.array([r_p, 0.0, 0.0])
-        vel = np.array([0.0, v_p, 0.0])
-
-        # Tilt the whole orbital plane by the inclination about the x-axis,
-        # so the orbit is a great circle (or ellipse) crossing the equator.
-        pos = self.config.rot @ pos
-        vel = self.config.rot @ vel
-        return np.concatenate([pos, vel])
+        r = self.config.to_position()
+        v = self.config.to_velocity()
+        return np.concatenate((r, v)).flatten()

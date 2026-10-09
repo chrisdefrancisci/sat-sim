@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 
-from SatSim.common import earth, conversions
+from SatSim.common import earth
 from SatSim.common.conversions import rotation_matrix
 
 
@@ -20,7 +20,7 @@ class ImpulseConfig:
 
 
 @dataclass(frozen=True)
-class OrbitElements:
+class OrbitConfig:
     r"""
     Keplerian orbit elements.
 
@@ -35,30 +35,53 @@ class OrbitElements:
     node: float
     r"""Right ascension of the ascending node orbit, :math:`\Omega` (deg)."""
     arg_perigee: float
-    r"""Argument perigee of the orbit, :math:`\omega` (deg)."""
+    r"""Argument of perigee of the orbit, :math:`\omega` (deg)."""
     true_anomaly: float
     r"""True anomaly of the orbit, :math:`\nu` (deg)."""
 
+    @property
+    def radius(self) -> float:
+        """
+        Helper to ensure circular orbit.
+        
+        :return: Radius of the circular orbit, :math:`r` (km)
+        """
+        if self.eccentricity != 0.0:
+            raise ValueError(f"Orbit has eccentricity: {self.eccentricity}")
+        return self.semimajor
+
+    @property
+    def period(self) -> float:
+        r"""
+        Calculates the period of the orbit using Kepler's third law.
+
+        .. math:: P = 2\pi \sqrt{\frac{a^3}{\mu}}
+
+        :see also: Vallado, Eq 1-26, pg 30
+        :return: Period, :math:`s`
+        """
+        return 2 * np.pi * np.sqrt(self.semimajor ** 3 / earth.mu)
+
     @staticmethod
-    def from_circular_eq(radius: float, longitude: float) -> 'OrbitElements':
+    def from_circular_eq(radius: float, true_longitude: float) -> 'OrbitConfig':
         r"""
         Factory function to create orbital elements from a circular equatorial orbit.
 
         :param radius: Radius of the circular orbit, :math:`r` (km).
-        :param longitude: True longitude of the circular orbit, :math:`\lambda_{true}` (deg).
+        :param true_longitude: True longitude of the circular orbit, :math:`\lambda_{true}` (deg).
         :return: Imprecise OrbitElements that can be used for numerical computations.
         """
-        return OrbitElements(
+        return OrbitConfig(
             semimajor=radius,
             eccentricity=0,
             inclination=0,
             node=0,
             arg_perigee=0,
-            true_anomaly=longitude,
+            true_anomaly=true_longitude,
         )
 
     @staticmethod
-    def from_circular_inc(radius: float, inclination: float, node: float, arg_latitude: float) -> 'OrbitElements':
+    def from_circular_inc(radius: float, inclination: float, node: float, arg_latitude: float) -> 'OrbitConfig':
         r"""
         Factory function to create orbital elements from a circular inclined orbit.
 
@@ -68,7 +91,7 @@ class OrbitElements:
         :param arg_latitude: Argument of latitude of the circular orbit, :math:`u` (deg).
         :return: Imprecise OrbitElements that can be used for numerical computations.
         """
-        return OrbitElements(
+        return OrbitConfig(
             semimajor=radius,
             eccentricity=0,
             inclination=inclination,
@@ -79,7 +102,7 @@ class OrbitElements:
 
     @staticmethod
     def from_elliptical_eq(semimajor: float, eccentricity: float, long_periapsis: float,
-                           true_anomaly: float) -> 'OrbitElements':
+                           true_anomaly: float) -> 'OrbitConfig':
         r"""
         Factory function to create orbital elements from a elliptical equatorial orbit.
 
@@ -90,7 +113,7 @@ class OrbitElements:
 
         :return: Imprecise OrbitElements that can be used for numerical computations.
         """
-        return OrbitElements(
+        return OrbitConfig(
             semimajor=semimajor,
             eccentricity=eccentricity,
             inclination=0,
@@ -134,59 +157,6 @@ class OrbitElements:
         vel_earth_centered = rotation_matrix(2, -raan) @ rotation_matrix(0, -i) @ rotation_matrix(2,
                                                                                                   -omega) @ vel_perifocal
         return vel_earth_centered
-
-
-@dataclass(frozen=True)
-class OrbitConfig:
-    """
-    TODO: Deprecated. needs to be removed.
-    """
-    altitude_km: float
-    inclination_deg: float
-    eccentricity: float
-
-    @property
-    def rot(self) -> np.ndarray:
-        inc = np.radians(self.inclination_deg)
-        rot = np.array([
-            [1, 0, 0],
-            [0, np.cos(inc), -np.sin(inc)],
-            [0, np.sin(inc), np.cos(inc)],
-        ])
-        return rot
-
-    @property
-    def semimajor(self) -> float:
-        r"""
-        Calculates the semimajor axis of the ellipse / radius of the circle
-        :return: Semimajor axis of the ellipse, :math:`a` (km)
-        """
-        r_p = earth.radius + self.altitude_km
-        semimajor = r_p / (1.0 - self.eccentricity)
-        return semimajor
-
-    @property
-    def radius(self) -> float:
-        """
-        Helper to ensure circular orbit.
-        
-        :return: Radius of the circular orbit, :math:`r` (km)
-        """
-        if self.eccentricity != 0.0:
-            raise ValueError(f"Orbit has eccentricity: {self.eccentricity}")
-        return self.semimajor
-
-    @property
-    def period(self) -> float:
-        r"""
-        Calculates the period of the orbit using Kepler's third law.
-
-        .. math:: P = 2\pi \sqrt{\frac{a^3}{\mu}}
-
-        :see also: Vallado, Eq 1-26, pg 30
-        :return: Period, :math:`s`
-        """
-        return 2 * np.pi * np.sqrt(self.semimajor ** 3 / earth.mu)
 
 
 @dataclass(frozen=True)

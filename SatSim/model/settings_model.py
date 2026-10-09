@@ -3,7 +3,7 @@ import ttkbootstrap as ttk
 import numpy as np
 
 from SatSim.common import earth
-from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig, SimConfig
+from SatSim.model.maneuver_model import ImpulseConfig, SimConfig, OrbitConfig
 
 
 class OrbitModel:
@@ -15,6 +15,15 @@ class OrbitModel:
         self.altitude_km = ttk.DoubleVar(value=kwargs.pop("altitude_km", 450))
         self.inclination_deg = ttk.DoubleVar(value=kwargs.pop("inclination_deg", 30))
         self.eccentricity = ttk.DoubleVar(value=kwargs.pop("eccentricity", 0))
+        self.node = ttk.DoubleVar(value=kwargs.pop("node", 0))
+        self.arg_perigee = ttk.DoubleVar(value=kwargs.pop("arg_perigee", 0))
+        self.true_anomaly = ttk.DoubleVar(value=kwargs.pop("true_anomaly", 0))
+
+        # Special cases
+        self.true_longitude = ttk.DoubleVar(value=kwargs.pop("true_longitude", 0))
+        self.arg_latitude = ttk.DoubleVar(value=kwargs.pop("arg_latitude", 0))
+        self.long_periapsis = ttk.DoubleVar(value=kwargs.pop("long_periapsis", 0))
+
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -23,15 +32,43 @@ class OrbitModel:
         result.altitude_km = ttk.DoubleVar(value=self.altitude_km.get())
         result.inclination_deg = ttk.DoubleVar(value=self.inclination_deg.get())
         result.eccentricity = ttk.DoubleVar(value=self.eccentricity.get())
+        result.node = ttk.DoubleVar(value=self.node.get())
+        result.arg_perigee = ttk.DoubleVar(value=self.arg_perigee.get())
+        result.true_anomaly = ttk.DoubleVar(value=self.true_anomaly.get())
+        result.true_longitude = ttk.DoubleVar(value=self.true_longitude.get())
+        result.arg_latitude = ttk.DoubleVar(value=self.arg_latitude.get())
+        result.long_periapsis = ttk.DoubleVar(value=self.long_periapsis.get())
         return result
 
     def to_config(self) -> OrbitConfig:
-        return OrbitConfig(
-            altitude_km=self.altitude_km.get(),
-            inclination_deg=self.inclination_deg.get(),
-            eccentricity=self.eccentricity.get()
-        )
-
+        if self.eccentricity == 0.0 and self.inclination_deg.get() == 0.0:
+            return OrbitConfig.from_circular_eq(
+                    radius=self.altitude_km.get() + earth.radius, 
+                    true_longitude=self.true_longitude.get()
+                )
+        elif self.eccentricity == 0.0:
+            return OrbitConfig.from_circular_inc(
+                    radius=self.altitude_km.get() + earth.radius, 
+                    inclination=self.inclination_deg.get(), 
+                    node=self.node.get(), 
+                    arg_latitude=self.arg_latitude.get()
+                )
+        elif self.inclination_deg == 0.0:
+            return OrbitConfig.from_elliptical_eq(
+                    semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()), 
+                    eccentricity=self.eccentricity.get(), 
+                    long_periapsis=self.long_periapsis.get(),
+                    true_anomaly= self.true_anomaly.get()
+                )
+        else:
+            return OrbitConfig(
+                semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()),
+                eccentricity= self.eccentricity.get(),
+                inclination=self.inclination_deg.get(),
+                node = self.node.get(),
+                arg_perigee=self.arg_perigee.get(),
+                true_anomaly=self.true_anomaly.get()
+            )
 
 class HohmannModel:
     r"""
