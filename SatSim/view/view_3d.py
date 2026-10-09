@@ -3,8 +3,6 @@ import traceback
 import ttkbootstrap as ttk
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 # from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3D projection)
 import numpy as np
 
@@ -29,6 +27,8 @@ class OrbitView:
                                       color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
         self.timed_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
                                        linewidth=3.0, *args, **kwargs)
+        # kwargs.pop('label')
+        # , label='_nolegend_'
         self.marker = self.ax.scatter(*pos[-1], *args, **kwargs)
 
     def clear(self):
@@ -120,6 +120,7 @@ class View3D(ttk.Frame):
         self.ax.set_zlim3d(centers[2] - half_range, centers[2] + half_range)
         self.ax.set_box_aspect([1, 1, 1])
 
+        self.plot.set_legend_below()
         self.plot.refresh()
 
     def update_times(self, t_min, t_max):
@@ -144,3 +145,5 @@ class View3D(ttk.Frame):
         self.orbits = []
         self.t_min = None
         self.t_max = None
+        self.plot.set_legend_below()   # drops the now-empty legend
+        self.plot.refresh()

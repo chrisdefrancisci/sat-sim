@@ -11,7 +11,6 @@ matplotlib.use("TkAgg")
 matplotlib.rcParams['axes3d.mouserotationstyle'] = 'azel'
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-import numpy as np
 
 
 class ThemedToolbar(NavigationToolbar2Tk):
@@ -68,6 +67,41 @@ class Plot(ttk.Frame):
 
         self.apply_theme()
 
+    def _style_legends(self):
+        c = self.style.colors
+        legends = [l for l in (self.ax.get_legend(), *self.figure.legends) if l]
+        for legend in legends:
+            frame = legend.get_frame()
+            frame.set_facecolor(c.bg)
+            frame.set_edgecolor(c.border)
+            for text in legend.get_texts():
+                text.set_color(c.fg)
+
+    def set_legend_below(self):
+        """
+        Place a single-row legend beneath the figure, built from the
+        axes' labeled artists. Duplicate labels are collapsed.
+        """
+        entries = {}
+        for handle, label in zip(*self.ax.get_legend_handles_labels()):
+            if label and not label.startswith("_") and label not in entries:
+                entries[label] = handle
+
+        # Remove any previous legends
+        for legend in list(self.figure.legends):
+            legend.remove()
+        if self.ax.get_legend():
+            self.ax.get_legend().remove()
+
+        if entries:
+            self.figure.legend(
+                list(entries.values()), list(entries.keys()),
+                loc="lower center", ncol=len(entries), frameon=True,
+            )
+            self.figure.subplots_adjust(bottom=0.1)  # leave room for the legend
+
+        self._style_legends()
+
     def apply_theme(self):
         c = self.style.colors
 
@@ -84,12 +118,7 @@ class Plot(ttk.Frame):
             spine.set_color(c.border)
         self.ax.grid(True, color=c.border, alpha=0.5)
 
-        legend = self.ax.get_legend()
-        if legend:
-            legend.get_frame().set_facecolor(c.bg)
-            legend.get_frame().set_edgecolor(c.border)
-            for text in legend.get_texts():
-                text.set_color(c.fg)
+        self._style_legends()
 
         # Toolbar
         self.toolbar.apply_theme(c)

@@ -71,7 +71,9 @@ class SimController(ttk.Frame):
         labels = ['Chaser', 'Target']
         for idx in range(0, len(self.model.orbits)):
             full_t, full_pos = self.model.get_full_positions(idx)
-            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=[labels[idx]])
+            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])
+        # self.view3d.ax.legend()
+        # self.view3d._refresh()
 
         self.total_duration.set(self.model.get_total_duration())
         self.start_scale.configure(to=self.total_duration.get() / 60)
