@@ -5,6 +5,13 @@ from SatSim.model.settings_model import SettingsModel
 from SatSim.model.orbit_model import OrbitModel
 from SatSim.model.maneuver_model import ImpulseConfig
 
+class ImpulseResultsModel:
+    def __init__(self, time: float, pos: np.ndarray, magnitude: float):
+        self.time = time
+        self.pos = pos
+        self.magnitude = abs(magnitude)
+
+
 class Simulate:
 
     def __init__(self, settings:SettingsModel):
@@ -12,7 +19,7 @@ class Simulate:
         self.orbits:list[OrbitModel] = []
         self.orbit_events = []
         self.maneuvers:list[ImpulseConfig] = []
-        self.apply_impulse:ImpulseConfig|None = None
+        self.impulse_results:list[ImpulseResultsModel] = []
         self.times = []
         self.states = []
 
@@ -58,12 +65,13 @@ class Simulate:
             # Apply impulsive delta v in the direction of the current velocity vector
             v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
             y0[9:12] += v_norm * man.delta_v
+            self.impulse_results.append(ImpulseResultsModel(t0, y0[6:9], man.delta_v))
 
         self.times = [t0]
         self.states = [y0]
 
-        # For now let's default to running 2 periods after any change
-        t_final = self._get_max_period() * 2
+        # Get at least one orbit
+        t_final = self._get_max_period() * 1.1
 
         while self.times[-1] < t_final:
             # Drop the first linspace point
@@ -83,9 +91,12 @@ class Simulate:
                 # Apply impulsive delta v in the direction of the current velocity vector
                 v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
                 y0[9:12] += v_norm * man.delta_v
-                # Extend simulation length
+                # Store result
+                self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
+
+                # Extend simulation length to capture at least a full rotation of the largest orbit
                 t0 = sol.t[-1]
-                t_final = self._get_max_period() * 2 + sol.t[-1]
+                t_final = self._get_max_period() * 1.1 + sol.t[-1]
 
 
     def get_total_duration(self) -> float:
