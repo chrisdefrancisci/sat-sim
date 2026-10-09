@@ -41,19 +41,19 @@ class OrbitModel:
         return result
 
     def to_config(self) -> OrbitConfig:
-        if self.eccentricity == 0.0 and self.inclination_deg.get() == 0.0:
+        if self.eccentricity.get() == 0.0 and self.inclination_deg.get() == 0.0:
             return OrbitConfig.from_circular_eq(
                     radius=self.altitude_km.get() + earth.radius, 
                     true_longitude=self.true_longitude.get()
                 )
-        elif self.eccentricity == 0.0:
+        elif self.eccentricity.get() == 0.0:
             return OrbitConfig.from_circular_inc(
                     radius=self.altitude_km.get() + earth.radius, 
                     inclination=self.inclination_deg.get(), 
                     node=self.node.get(), 
                     arg_latitude=self.arg_latitude.get()
                 )
-        elif self.inclination_deg == 0.0:
+        elif self.inclination_deg.get() == 0.0:
             return OrbitConfig.from_elliptical_eq(
                     semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()), 
                     eccentricity=self.eccentricity.get(), 
