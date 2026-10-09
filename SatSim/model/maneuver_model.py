@@ -138,6 +138,9 @@ class OrbitElements:
 
 @dataclass(frozen=True)
 class OrbitConfig:
+    """
+    TODO: Deprecated. needs to be removed.
+    """
     altitude_km: float
     inclination_deg: float
     eccentricity: float

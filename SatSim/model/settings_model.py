@@ -166,10 +166,12 @@ class BiellipticModel:
     Uses Vallado Algorith 37, pg 330.
     """
 
-DEFAULT_INT_RATIO = 40
+    DEFAULT_INT_RATIO = 40
     r"""
     Ratio between intermediate orbit and initial orbit, ..math:`R^* = r_{int} / r_{initial}`.
-    """    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
+    """
+
+    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
         self.target_model = target_model
         self.chaser_model = chaser_model
         self.ratio_int_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -214,7 +216,7 @@ DEFAULT_INT_RATIO = 40
 
     @r_int.setter
     def r_int(self, r) -> None:
-        matching_r_threshold = 0.001 # km = 1m
+        matching_r_threshold = 0.001  # km = 1m
         if r - self.target_model.to_config().semimajor < matching_r_threshold and self.target_model.eccentricity == 0:
             self.ratio_final_selection.set("target".capitalize())
         else:
@@ -232,7 +234,7 @@ DEFAULT_INT_RATIO = 40
 
     @r_final.setter
     def r_final(self, r) -> None:
-        matching_r_threshold = 0.001 # km = 1m
+        matching_r_threshold = 0.001  # km = 1m
         if r - self.target_model.to_config().semimajor < matching_r_threshold and self.target_model.eccentricity == 0:
             self.ratio_final_selection.set("target".capitalize())
         else:
@@ -261,7 +263,7 @@ DEFAULT_INT_RATIO = 40
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final)**3 / (8 * earth.mu))
+        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
@@ -284,7 +286,6 @@ DEFAULT_INT_RATIO = 40
         r2 = self.r_final
         return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
-
     @property
     def delta_v_3(self) -> float:
         r1 = self.chaser_model.to_config().radius
@@ -295,7 +296,6 @@ DEFAULT_INT_RATIO = 40
     def delta_v_total(self) -> float:
         return abs(self.delta_v_1) + abs(self.delta_v_2) + abs(self.delta_v_3)
 
-
     def register_cb(self, cb) -> list[tuple]:
         """
         Register callback on variables that affect the generation of the final radius.
@@ -304,7 +304,8 @@ DEFAULT_INT_RATIO = 40
         :returns: (variable, trace_id) pairs. The caller can remove them on destruction.
         """
         watched = [
-            self.ratio_int_selection, self.ratio_int_custom, self.ratio_final_selection, self.ratio_final_custom, self.t_selection, self.t_custom
+            self.ratio_int_selection, self.ratio_int_custom, self.ratio_final_selection, self.ratio_final_custom,
+            self.t_selection, self.t_custom
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
@@ -314,7 +315,6 @@ DEFAULT_INT_RATIO = 40
             ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2),
             ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
-
 
 
 class SettingsModel:

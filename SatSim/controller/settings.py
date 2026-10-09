@@ -1,4 +1,3 @@
-
 from dataclasses import asdict
 import copy
 from typing import Any
@@ -17,42 +16,47 @@ class SatelliteSettings(ttk.Frame):
     and sensor and thruster parameters.
     """
 
-    def __init__(self, parent, target_model:OrbitModel, chaser_model:OrbitModel):
+    def __init__(self, parent, target_model: OrbitModel, chaser_model: OrbitModel):
         super().__init__(parent)
         chaser_frame = ttk.LabelFrame(self, text="Chaser")
         chaser_frame.pack(side="top", fill="both", expand=True, pady=5)
-        self.chaser_entry = OrbitEntry(chaser_frame,variables=[chaser_model.altitude_km, chaser_model.inclination_deg, chaser_model.eccentricity])
+        self.chaser_entry = OrbitEntry(chaser_frame, variables=[chaser_model.altitude_km, chaser_model.inclination_deg,
+                                                                chaser_model.eccentricity])
         self.chaser_entry.pack(side="top", fill="both", expand=True)
         target_frame = ttk.LabelFrame(self, text="Target")
         target_frame.pack(side="top", fill="both", expand=True, pady=5)
-        self.target_entry = OrbitEntry(target_frame, variables=[target_model.altitude_km, target_model.inclination_deg, target_model.eccentricity])
+        self.target_entry = OrbitEntry(target_frame, variables=[target_model.altitude_km, target_model.inclination_deg,
+                                                                target_model.eccentricity])
         self.target_entry.pack(side="top", fill="both", expand=True)
 
 
-
 class HohmannSettings(ttk.Frame):
-    def __init__(self, parent, model:HohmannModel, *args, **kwargs):
+    def __init__(self, parent, model: HohmannModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
-        ttk.Label(self, text="Final Radius (km):").grid(row=0, column=0, padx=(5,0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",], selection_var=model.r_selection, entry_var=model.r_custom)
-        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0,5))
-        
-        ttk.Label(self, text="Maneuver Time (s):").grid(row=1, column=0, padx=(5,0), sticky="e")
-        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0}, selection_var=model.t_selection, entry_var=model.t_custom)
-        self.timeEntry.grid(row=1, column=1, sticky="ew", pady=(0,5))
+        ttk.Label(self, text="Final Radius (km):").grid(row=0, column=0, padx=(5, 0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius", ],
+                                              selection_var=model.r_selection, entry_var=model.r_custom)
+        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
+
+        ttk.Label(self, text="Maneuver Time (s):").grid(row=1, column=0, padx=(5, 0), sticky="e")
+        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0},
+                                            selection_var=model.t_selection, entry_var=model.t_custom)
+        self.timeEntry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         self.columnconfigure(1, weight=1)
 
         result_row = ttk.Frame(self)
         result_row.grid(row=2, column=1, columnspan=2, sticky="ew")
-        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5, 0), pady=5)
         self.delta_v_total = ttk.StringVar(value="Unknown")
-        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
         ttk.Label(result_row, text="(km/s)").pack(side="left", padx=5, pady=5)
-        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5, 0), pady=5)
         self.delta_t_total = ttk.StringVar(value="Unknown")
-        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
         ttk.Label(result_row, text="(s)").pack(side="left", padx=5, pady=5)
 
         # Register the callback and set the "view" - populate the calculated values
@@ -78,32 +82,39 @@ class HohmannSettings(ttk.Frame):
 
 
 class BiellipticSettings(ttk.Frame):
-    def __init__(self, parent, model:BiellipticModel, *args, **kwargs):
+    def __init__(self, parent, model: BiellipticModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
-        ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5,0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",], selection_var=model.ratio_final_selection, entry_var=model.ratio_final_custom)
-        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0,5))
-        
-        ttk.Label(self, text="Final Radius Ratio:").grid(row=1, column=0, padx=(5,0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius",], selection_var=model.ratio_final_selection, entry_var=model.ratio_final_custom)
-        self.radiusEntry.grid(row=1, column=1, sticky="ew", pady=(0,5))
-        
-        ttk.Label(self, text="Maneuver Time (s):").grid(row=2, column=0, padx=(5,0), sticky="e")
-        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0}, selection_var=model.t_selection, entry_var=model.t_custom)
-        self.timeEntry.grid(row=2, column=1, sticky="ew", pady=(0,5))
+        ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5, 0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius", ],
+                                              selection_var=model.ratio_final_selection,
+                                              entry_var=model.ratio_final_custom)
+        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
+
+        ttk.Label(self, text="Final Radius Ratio:").grid(row=1, column=0, padx=(5, 0), sticky="e")
+        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius", ],
+                                              selection_var=model.ratio_final_selection,
+                                              entry_var=model.ratio_final_custom)
+        self.radiusEntry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+
+        ttk.Label(self, text="Maneuver Time (s):").grid(row=2, column=0, padx=(5, 0), sticky="e")
+        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0},
+                                            selection_var=model.t_selection, entry_var=model.t_custom)
+        self.timeEntry.grid(row=2, column=1, sticky="ew", pady=(0, 5))
 
         self.columnconfigure(1, weight=1)
 
         result_row = ttk.Frame(self)
         result_row.grid(row=3, column=1, columnspan=2, sticky="ew")
-        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5, 0), pady=5)
         self.delta_v_total = ttk.StringVar(value="Unknown")
-        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
         ttk.Label(result_row, text="(km/s)").pack(side="left", padx=5, pady=5)
-        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5, 0), pady=5)
         self.delta_t_total = ttk.StringVar(value="Unknown")
-        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5,0), pady=5)
+        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
         ttk.Label(result_row, text="(s)").pack(side="left", padx=5, pady=5)
 
         # Register the callback and set the "view" - populate the calculated values
@@ -138,7 +149,7 @@ class ManeuverSettings(ttk.Frame):
         "Bielliptic": BiellipticModel
     }
 
-    def __init__(self, parent, settings:SettingsModel, maneuver_idx:int):
+    def __init__(self, parent, settings: SettingsModel, maneuver_idx: int):
         super().__init__(parent)
 
         self.settings = settings
@@ -163,7 +174,7 @@ class ManeuverSettings(ttk.Frame):
             self.current_page.pack(fill="both", expand=True)
 
     @staticmethod
-    def create_new(parent, settings:SettingsModel) -> 'ManeuverSettings':
+    def create_new(parent, settings: SettingsModel) -> 'ManeuverSettings':
         idx = len(settings.orbit_maneuvers)
         settings.orbit_maneuvers.append(None)
         new_page = ManeuverSettings(parent, settings, idx)
@@ -180,12 +191,13 @@ class ManeuverSettings(ttk.Frame):
         self.settings.orbit_maneuvers[self.maneuver_idx] = new_model
         self.current_page.pack(fill="both", expand=True)
 
+
 class SettingsDialog(ttk.Toplevel):
     """
     Modal window for displaying and editing settings.
     """
 
-    def __init__(self, parent, settings:SettingsModel):
+    def __init__(self, parent, settings: SettingsModel):
         super().__init__(
             master=parent,
             title="Settings",
@@ -223,7 +235,8 @@ class SettingsDialog(ttk.Toplevel):
         self.settings = copy.deepcopy(settings)
         self.parent = parent
 
-        self.satellite_settings = SatelliteSettings(self.notebook, self.settings.target_orbit, self.settings.chaser_orbit)
+        self.satellite_settings = SatelliteSettings(self.notebook, self.settings.target_orbit,
+                                                    self.settings.chaser_orbit)
         self.maneuver_settings = []
 
         self._build_ui()
