@@ -5,3 +5,4 @@ SatSim
    :maxdepth: 4
 
    SatSim
+   test

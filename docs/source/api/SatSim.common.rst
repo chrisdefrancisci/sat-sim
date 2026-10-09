@@ -1,5 +1,5 @@
-SatSim.view package
-===================
+SatSim.common package
+=====================
 
 Submodules
 ----------
@@ -7,13 +7,13 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   SatSim.view.plot
-   SatSim.view.view_3d
+   SatSim.common.conversions
+   SatSim.common.earth
 
 Module contents
 ---------------
 
-.. automodule:: SatSim.view
+.. automodule:: SatSim.common
    :members:
    :show-inheritance:
    :undoc-members:

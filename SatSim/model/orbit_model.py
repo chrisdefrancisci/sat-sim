@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 import numpy as np
 
-from SatSim.constants import earth
+from SatSim.common import earth
 from SatSim.model.maneuver_model import OrbitConfig
+
 
 class OrbitModel:
     r""" Orbit model
@@ -12,7 +13,7 @@ class OrbitModel:
 
     """
 
-    def __init__(self, orbit_config:OrbitConfig):
+    def __init__(self, orbit_config: OrbitConfig):
         """
 
 
@@ -54,6 +55,7 @@ class OrbitModel:
         Calculates the semimajor axis, :math:`a`, and initializes position and velocity to be at perigee.
 
         Uses the definition of eccentricity to convert between :math:`r_p` and :math:`a`.
+
         .. math::
             \begin{aligned}
                 e &= \frac{c}{a} \\
@@ -62,6 +64,7 @@ class OrbitModel:
             \end{aligned}
 
         Uses the vis-viva equation for to determine velocity at perigee.
+
         .. math::
             v^2 = \mu (\frac{2}{|r|} - \frac{1}{a})
 
@@ -71,7 +74,7 @@ class OrbitModel:
         """
 
         r_p = earth.radius + self.config.altitude_km
-        
+
         # Pos, vel at perigee, lying along the x-axis before inclination tilt.
         v_p = np.sqrt(earth.mu * (2.0 / r_p - 1.0 / self.config.semimajor))  # vis-viva equation
         pos = np.array([r_p, 0.0, 0.0])

@@ -7,7 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   SatSim.constants
+   SatSim.common
    SatSim.controller
    SatSim.model
    SatSim.view
@@ -15,21 +15,11 @@ Subpackages
 Submodules
 ----------
 
-SatSim.app module
------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: SatSim.app
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-SatSim.main module
-------------------
-
-.. automodule:: SatSim.main
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   SatSim.app
+   SatSim.main
 
 Module contents
 ---------------

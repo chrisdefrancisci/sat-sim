@@ -2,13 +2,15 @@ import copy
 import ttkbootstrap as ttk
 import numpy as np
 
-from SatSim.constants import earth
+from SatSim.common import earth
 from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig, SimConfig
+
 
 class OrbitModel:
     r"""
     Hold the settings data for orbit parameters.
     """
+
     def __init__(self, **kwargs):
         self.altitude_km = ttk.DoubleVar(value=kwargs.pop("altitude_km", 450))
         self.inclination_deg = ttk.DoubleVar(value=kwargs.pop("inclination_deg", 30))
@@ -25,10 +27,11 @@ class OrbitModel:
 
     def to_config(self) -> OrbitConfig:
         return OrbitConfig(
-            altitude_km=self.altitude_km.get(), 
+            altitude_km=self.altitude_km.get(),
             inclination_deg=self.inclination_deg.get(),
             eccentricity=self.eccentricity.get()
-            )
+        )
+
 
 class HohmannModel:
     r"""
@@ -36,7 +39,8 @@ class HohmannModel:
 
     Assumes circular and coplanar start and end orbits, with apogee kick exactly at $\nu = 180^\circ$
     """
-    def __init__(self, target_model:OrbitModel, chaser_model:OrbitModel, **kwargs):
+
+    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
         self.target_model = target_model
         self.chaser_model = chaser_model
         self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -55,7 +59,7 @@ class HohmannModel:
         else:
             result.target_model = copy.deepcopy(self.target_model)
         if id(self.chaser_model) in memo:
-                result.chaser_model = memo[id(self.chaser_model)]
+            result.chaser_model = memo[id(self.chaser_model)]
         else:
             result.chaser_model = copy.deepcopy(self.chaser_model)
 
@@ -79,11 +83,11 @@ class HohmannModel:
         elif self.r_selection.get().lower() == "target":
             return self.target_model.to_config().radius
         else:
-            raise ValueError(f"Unknown option for radius: {self.r_selection.get()}") 
+            raise ValueError(f"Unknown option for radius: {self.r_selection.get()}")
 
     @r_final.setter
     def r_final(self, r) -> None:
-        matching_r_threshold = 0.001 # km = 1m
+        matching_r_threshold = 0.001  # km = 1m
         if r - self.target_model.to_config().semimajor < matching_r_threshold and self.target_model.eccentricity == 0:
             self.r_selection.set("target".capitalize())
         else:
@@ -98,9 +102,9 @@ class HohmannModel:
             return 0
         elif self.t_selection.get().lower() == "rendezvous":
             # TODO: implement Vallado Algorithm 45: Circular Coplanar Phasing (Different Orbits) pg 367
-            raise ValueError(f"{self.t_selection.get()} Not yet implemented") 
+            raise ValueError(f"{self.t_selection.get()} Not yet implemented")
         else:
-            raise ValueError(f"Unknown option for time: {self.t_selection.get()}") 
+            raise ValueError(f"Unknown option for time: {self.t_selection.get()}")
 
     @t_start.setter
     def t_start(self, t) -> None:
@@ -112,7 +116,7 @@ class HohmannModel:
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final)**3 / (8 * earth.mu))
+        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
@@ -128,7 +132,7 @@ class HohmannModel:
         r1 = self.chaser_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
-    
+
     @property
     def delta_v_2(self) -> float:
         r1 = self.chaser_model.to_config().radius
@@ -154,7 +158,7 @@ class HohmannModel:
 
     def to_config(self) -> list[ImpulseConfig]:
         return [
-            ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1), 
+            ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1),
             ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
@@ -165,7 +169,8 @@ class BiellipticModel:
 
     Assumes circular and coplanar start and end orbits, with apogee kick exactly at $\nu = 180^\circ$
     """
-    def __init__(self, target_model:OrbitModel, chaser_model:OrbitModel, **kwargs):
+
+    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
         self.target_model = target_model
         self.chaser_model = chaser_model
         self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -184,7 +189,7 @@ class BiellipticModel:
         else:
             result.target_model = copy.deepcopy(self.target_model)
         if id(self.chaser_model) in memo:
-                result.chaser_model = memo[id(self.chaser_model)]
+            result.chaser_model = memo[id(self.chaser_model)]
         else:
             result.chaser_model = copy.deepcopy(self.chaser_model)
 
@@ -195,10 +200,12 @@ class BiellipticModel:
 
         return result
 
+
 class SettingsModel:
     """
     Model to represent the state of the settings UI.
     """
+
     def __init__(self):
         self.target_orbit = OrbitModel()
         self.chaser_orbit = OrbitModel()
@@ -218,7 +225,7 @@ class SettingsModel:
     def to_config(self) -> SimConfig:
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
-        maneuvers:list[ImpulseConfig] =[]
+        maneuvers: list[ImpulseConfig] = []
         for m in self.orbit_maneuvers:
             maneuvers.extend(m.to_config())
         return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)

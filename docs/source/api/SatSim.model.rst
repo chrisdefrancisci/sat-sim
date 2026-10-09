@@ -4,13 +4,13 @@ SatSim.model package
 Submodules
 ----------
 
-SatSim.model.orbit\_model module
---------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: SatSim.model.orbit_model
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   SatSim.model.maneuver_model
+   SatSim.model.orbit_model
+   SatSim.model.settings_model
+   SatSim.model.simulate
 
 Module contents
 ---------------

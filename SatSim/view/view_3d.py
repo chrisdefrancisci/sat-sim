@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 # from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3D projection)
 import numpy as np
 
-from SatSim.constants import earth
+from SatSim.common import earth
 from SatSim.view.plot import Plot
 
 import traceback
@@ -131,7 +131,6 @@ class View3D(ttk.Frame):
 
     def add_orbit(self, *args, **kwargs):
         self.orbits.append(OrbitView(self.ax, *args, **kwargs))
-        # TODO: get max orbit and set window
         self.t_min = self.orbits[-1].times[0]
         self.t_max = self.orbits[-1].times[-1]
 
