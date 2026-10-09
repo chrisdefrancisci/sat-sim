@@ -44,7 +44,7 @@ class Simulate:
         """
         config = self.settings.to_config()
         dt = 5  # (s) TODO: make configurable
-        self.orbits = [OrbitModel(config.target_orbit), OrbitModel(config.chaser_orbit)]
+        self.orbits = [OrbitModel(config.target_orbit), OrbitModel(config.interceptor_orbit)]
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True

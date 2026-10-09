@@ -68,7 +68,7 @@ class SimController(ttk.Frame):
 
         self.model.run_simulation()
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
-        labels = ['Chaser', 'Target']
+        labels = ['Target', 'Interceptor']
         for idx in range(0, len(self.model.orbits)):
             full_t, full_pos = self.model.get_full_positions(idx)
             self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])

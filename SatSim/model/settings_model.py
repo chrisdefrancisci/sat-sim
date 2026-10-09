@@ -77,9 +77,9 @@ class HohmannModel:
     Assumes circular and coplanar start and end orbits, with apogee kick exactly at $\nu = 180^\circ$
     """
 
-    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
+    def __init__(self, target_model: OrbitModel, interceptor_model: OrbitModel, **kwargs):
         self.target_model = target_model
-        self.chaser_model = chaser_model
+        self.interceptor_model = interceptor_model
         self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
         self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_model.to_config().radius))
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -90,15 +90,15 @@ class HohmannModel:
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        # If copied from the SettingsModel, we want to have new references to the existing target and chaser models
+        # If copied from the SettingsModel, we want to have new references to the existing target and interceptor models
         if id(self.target_model) in memo:
             result.target_model = memo[id(self.target_model)]
         else:
             result.target_model = copy.deepcopy(self.target_model)
-        if id(self.chaser_model) in memo:
-            result.chaser_model = memo[id(self.chaser_model)]
+        if id(self.interceptor_model) in memo:
+            result.interceptor_model = memo[id(self.interceptor_model)]
         else:
-            result.chaser_model = copy.deepcopy(self.chaser_model)
+            result.interceptor_model = copy.deepcopy(self.interceptor_model)
 
         result.r_selection = ttk.StringVar(value=self.r_selection.get())
         result.r_custom = ttk.DoubleVar(value=self.r_custom.get())
@@ -147,7 +147,7 @@ class HohmannModel:
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
+        return np.pi * np.sqrt((self.interceptor_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
@@ -160,13 +160,13 @@ class HohmannModel:
         :return: Description
         :rtype: float
         """
-        r1 = self.chaser_model.to_config().radius
+        r1 = self.interceptor_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
 
     @property
     def delta_v_2(self) -> float:
-        r1 = self.chaser_model.to_config().radius
+        r1 = self.interceptor_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
@@ -182,7 +182,7 @@ class HohmannModel:
         :returns: (variable, trace_id) pairs. The caller can remove them on destruction.
         """
         watched = [
-            # self.target_model, self.chaser_model, # TODO: need a trace add for OrbitModel
+            # self.target_model, self.interceptor_model, # TODO: need a trace add for OrbitModel
             self.r_selection, self.r_custom, self.t_selection, self.t_custom
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
@@ -208,9 +208,9 @@ class BiellipticModel:
     Ratio between intermediate orbit and initial orbit, ..math:`R^* = r_{int} / r_{initial}`.
     """
 
-    def __init__(self, target_model: OrbitModel, chaser_model: OrbitModel, **kwargs):
+    def __init__(self, target_model: OrbitModel, interceptor_model: OrbitModel, **kwargs):
         self.target_model = target_model
-        self.chaser_model = chaser_model
+        self.interceptor_model = interceptor_model
         self.ratio_int_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
         self.ratio_int_custom = ttk.DoubleVar(value=kwargs.pop("Manual", self.DEFAULT_INT_RATIO))
         self.ratio_final_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -223,15 +223,15 @@ class BiellipticModel:
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        # If copied from the SettingsModel, we want to have new references to the existing target and chaser models
+        # If copied from the SettingsModel, we want to have new references to the existing target and interceptor models
         if id(self.target_model) in memo:
             result.target_model = memo[id(self.target_model)]
         else:
             result.target_model = copy.deepcopy(self.target_model)
-        if id(self.chaser_model) in memo:
-            result.chaser_model = memo[id(self.chaser_model)]
+        if id(self.interceptor_model) in memo:
+            result.interceptor_model = memo[id(self.interceptor_model)]
         else:
-            result.chaser_model = copy.deepcopy(self.chaser_model)
+            result.interceptor_model = copy.deepcopy(self.interceptor_model)
 
         result.ratio_final_selection = ttk.StringVar(value=self.ratio_final_selection.get())
         result.ratio_final_custom = ttk.DoubleVar(value=self.ratio_final_custom.get())
@@ -242,7 +242,7 @@ class BiellipticModel:
 
     @property
     def r_init(self) -> float:
-        return self.chaser_model.to_config().radius
+        return self.interceptor_model.to_config().radius
 
     @property
     def r_int(self) -> float:
@@ -300,7 +300,7 @@ class BiellipticModel:
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
+        return np.pi * np.sqrt((self.interceptor_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
@@ -313,19 +313,19 @@ class BiellipticModel:
         :return: Description
         :rtype: float
         """
-        r1 = self.chaser_model.to_config().radius
+        r1 = self.interceptor_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
 
     @property
     def delta_v_2(self) -> float:
-        r1 = self.chaser_model.to_config().radius
+        r1 = self.interceptor_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
     @property
     def delta_v_3(self) -> float:
-        r1 = self.chaser_model.to_config().radius
+        r1 = self.interceptor_model.to_config().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
@@ -361,7 +361,7 @@ class SettingsModel:
 
     def __init__(self):
         self.target_orbit = OrbitModel()
-        self.chaser_orbit = OrbitModel()
+        self.interceptor_orbit = OrbitModel()
         self.orbit_maneuvers = []
 
     def __deepcopy__(self, memo):
@@ -371,14 +371,14 @@ class SettingsModel:
 
         # Orbits must be copied before maneuvers
         result.target_orbit = copy.deepcopy(self.target_orbit, memo)
-        result.chaser_orbit = copy.deepcopy(self.chaser_orbit, memo)
+        result.interceptor_orbit = copy.deepcopy(self.interceptor_orbit, memo)
         result.orbit_maneuvers = copy.deepcopy(self.orbit_maneuvers, memo)
         return result
 
     def to_config(self) -> SimConfig:
         target = self.target_orbit.to_config()
-        chaser = self.chaser_orbit.to_config()
+        interceptor = self.interceptor_orbit.to_config()
         maneuvers: list[ImpulseConfig] = []
         for m in self.orbit_maneuvers:
             maneuvers.extend(m.to_config())
-        return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)
+        return SimConfig(target_orbit=target, interceptor_orbit=interceptor, maneuvers=maneuvers)
