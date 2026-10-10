@@ -24,7 +24,6 @@ class OrbitModel:
         self.arg_latitude = ttk.DoubleVar(value=kwargs.pop("arg_latitude", 0))
         self.long_periapsis = ttk.DoubleVar(value=kwargs.pop("long_periapsis", 0))
 
-
     def __deepcopy__(self, memo):
         cls = self.__class__
         result = cls.__new__(cls)
@@ -43,32 +42,33 @@ class OrbitModel:
     def to_config(self) -> OrbitConfig:
         if self.eccentricity.get() == 0.0 and self.inclination_deg.get() == 0.0:
             return OrbitConfig.from_circular_eq(
-                    radius=self.altitude_km.get() + earth.radius, 
-                    true_longitude=self.true_longitude.get()
-                )
+                radius=self.altitude_km.get() + earth.radius,
+                true_longitude=self.true_longitude.get()
+            )
         elif self.eccentricity.get() == 0.0:
             return OrbitConfig.from_circular_inc(
-                    radius=self.altitude_km.get() + earth.radius, 
-                    inclination=self.inclination_deg.get(), 
-                    node=self.node.get(), 
-                    arg_latitude=self.arg_latitude.get()
-                )
+                radius=self.altitude_km.get() + earth.radius,
+                inclination=self.inclination_deg.get(),
+                node=self.node.get(),
+                arg_latitude=self.arg_latitude.get()
+            )
         elif self.inclination_deg.get() == 0.0:
             return OrbitConfig.from_elliptical_eq(
-                    semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()), 
-                    eccentricity=self.eccentricity.get(), 
-                    long_periapsis=self.long_periapsis.get(),
-                    true_anomaly= self.true_anomaly.get()
-                )
+                semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()),
+                eccentricity=self.eccentricity.get(),
+                long_periapsis=self.long_periapsis.get(),
+                true_anomaly=self.true_anomaly.get()
+            )
         else:
             return OrbitConfig(
                 semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()),
-                eccentricity= self.eccentricity.get(),
+                eccentricity=self.eccentricity.get(),
                 inclination=self.inclination_deg.get(),
-                node = self.node.get(),
+                node=self.node.get(),
                 arg_perigee=self.arg_perigee.get(),
                 true_anomaly=self.true_anomaly.get()
             )
+
 
 class HohmannModel:
     r"""
@@ -80,10 +80,10 @@ class HohmannModel:
     def __init__(self, target_model: OrbitModel, interceptor_model: OrbitModel, **kwargs):
         self.target_model = target_model
         self.interceptor_model = interceptor_model
-        self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
+        self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
         self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_model.to_config().radius))
-        self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
-        self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 0.0))
+        self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
+        self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -213,10 +213,10 @@ class BiellipticModel:
         self.interceptor_model = interceptor_model
         self.ratio_int_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
         self.ratio_int_custom = ttk.DoubleVar(value=kwargs.pop("Manual", self.DEFAULT_INT_RATIO))
-        self.ratio_final_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
+        self.ratio_final_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
         self.ratio_final_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 1.0))
-        self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
-        self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 0.0))
+        self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
+        self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -233,6 +233,8 @@ class BiellipticModel:
         else:
             result.interceptor_model = copy.deepcopy(self.interceptor_model)
 
+        result.ratio_int_selection = ttk.StringVar(value=self.ratio_int_selection.get())
+        result.ratio_int_custom = ttk.DoubleVar(value=self.ratio_int_custom.get())
         result.ratio_final_selection = ttk.StringVar(value=self.ratio_final_selection.get())
         result.ratio_final_custom = ttk.DoubleVar(value=self.ratio_final_custom.get())
         result.t_selection = ttk.StringVar(value=self.t_selection.get())
@@ -246,16 +248,17 @@ class BiellipticModel:
 
     @property
     def r_int(self) -> float:
-        if self.ratio_final_selection.get().lower() == "custom":
-            return self.ratio_final_custom.get()
+        if self.ratio_int_selection.get().lower() == "custom":
+            return self.ratio_int_custom.get() * self.interceptor_model.to_config().radius
         else:
-            raise ValueError(f"Unknown option for radius: {self.ratio_final_selection.get()}")
+            raise ValueError(f"Unknown option for radius: {self.ratio_int_selection.get()}")
 
     @r_int.setter
     def r_int(self, r) -> None:
         matching_r_threshold = 0.001  # km = 1m
         if r - self.target_model.to_config().semimajor < matching_r_threshold and self.target_model.eccentricity == 0:
-            self.ratio_final_selection.set("target".capitalize())
+            self.ratio_final_selection.set(
+                "target".capitalize())  # TODO: remove, should be no options for intermediate orbit, other than min delta v maybe?
         else:
             self.ratio_final_selection.set("custom".capitalize())
             self.ratio_final_custom.set(r)
@@ -263,7 +266,7 @@ class BiellipticModel:
     @property
     def r_final(self) -> float:
         if self.ratio_final_selection.get().lower() == "custom":
-            return self.ratio_final_custom.get()
+            return self.ratio_final_custom.get() * self.interceptor_model.to_config().radius
         elif self.ratio_final_selection.get().lower() == "target":
             return self.target_model.to_config().radius
         else:
@@ -274,6 +277,8 @@ class BiellipticModel:
         matching_r_threshold = 0.001  # km = 1m
         if r - self.target_model.to_config().semimajor < matching_r_threshold and self.target_model.eccentricity == 0:
             self.ratio_final_selection.set("target".capitalize())
+            self.ratio_final_custom.set(
+                self.target_model.to_config().semimajor / self.interceptor_model.to_config().semimajor)
         else:
             self.ratio_final_selection.set("custom".capitalize())
             self.ratio_final_custom.set(r)
@@ -299,35 +304,75 @@ class BiellipticModel:
             self.t_custom.set(t)
 
     @property
+    def semimajor_1(self) -> float:
+        """Semimajor axis of the first transfer orbit. (km)"""
+        return (self.r_init + self.r_int) / 2.0
+
+    @property
+    def semimajor_2(self) -> float:
+        """Semimajor axis of the second transfer orbit. (km)"""
+        return (self.r_int + self.r_final) / 2.0
+
+    @property
+    def delta_t_1(self) -> float:
+        """Time between first and second burns. (s)"""
+        return np.pi / np.sqrt(earth.mu) * self.semimajor_1 ** (3 / 2)
+
+    @property
+    def delta_t_2(self) -> float:
+        """Time between second and third burns. (s)"""
+        return np.pi / np.sqrt(earth.mu) * self.semimajor_2 ** (3 / 2)
+
+    @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.interceptor_model.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
+        """Total transfer time to new orbit. (s)"""
+        return self.delta_t_1 + self.delta_t_2
 
     @property
     def delta_v_1(self) -> float:
         r"""
-        Gets the magnitude of the first impulsive burn.
+        Gets the magnitude of the first of three impulsive burns.
         The sign indicates if the burn is in the direction of velocity (positive) or opposite the direction of
         velocity (negative).
 
-        :param self: Description
-        :return: Description
-        :rtype: float
+        :return: Value of :math:`\Delta v_1`, first burn. (km/s)
         """
-        r1 = self.interceptor_model.to_config().radius
-        r2 = self.r_final
-        return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
+        r1 = self.r_init
+        a_trans1 = self.semimajor_1
+        v_init = np.sqrt(earth.mu / r1)
+        v_trans1a = np.sqrt(2 * earth.mu / r1 - earth.mu / a_trans1)
+        return v_trans1a - v_init
 
     @property
     def delta_v_2(self) -> float:
-        r1 = self.interceptor_model.to_config().radius
-        r2 = self.r_final
-        return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
+        r"""
+        Gets the magnitude of the second of three impulsive burn.
+        The sign indicates if the burn is in the direction of velocity (positive) or opposite the direction of
+        velocity (negative).
+
+        :return: Value of :math:`\Delta v_2`, second burns. (km/s)
+        """
+        r2 = self.r_int
+        a_trans1 = self.semimajor_1
+        a_trans2 = self.semimajor_2
+        v_trans1b = np.sqrt(2 * earth.mu / r2 - earth.mu / a_trans1)
+        v_trans2b = np.sqrt(2 * earth.mu / r2 - earth.mu / a_trans2)
+        return v_trans2b - v_trans1b
 
     @property
     def delta_v_3(self) -> float:
-        r1 = self.interceptor_model.to_config().radius
-        r2 = self.r_final
-        return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
+        r"""
+        Gets the magnitude of the third of three impulsive burn.
+        The sign indicates if the burn is in the direction of velocity (positive) or opposite the direction of
+        velocity (negative).
+
+        :return: Value of :math:`\Delta v_3`, third burns. (km/s)
+        """
+        r3 = self.r_final
+        a_trans2 = self.semimajor_2
+        v_trans2c = np.sqrt(2 * earth.mu / r3 - earth.mu / a_trans2)
+        v_final = np.sqrt(earth.mu / r3)
+        return v_final - v_trans2c
 
     @property
     def delta_v_total(self) -> float:
@@ -349,8 +394,8 @@ class BiellipticModel:
     def to_config(self) -> list[ImpulseConfig]:
         return [
             ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2),
-            ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2)
+            ImpulseConfig(time=self.t_start + self.delta_t_1, delta_v=self.delta_v_2),
+            ImpulseConfig(time=self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
         ]
 
 

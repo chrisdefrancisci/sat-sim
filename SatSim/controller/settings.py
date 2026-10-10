@@ -1,6 +1,7 @@
 from dataclasses import asdict
 import copy
 from typing import Any
+import tkinter as tk
 import ttkbootstrap as ttk
 
 from SatSim.model.settings_model import SettingsModel, HohmannModel, BiellipticModel, OrbitModel
@@ -84,16 +85,16 @@ class BiellipticSettings(ttk.Frame):
         super().__init__(parent, *args, **kwargs)
         self.model = model
         ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5, 0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius", ],
-                                              selection_var=model.ratio_final_selection,
-                                              entry_var=model.ratio_final_custom)
-        self.radiusEntry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
+        self.radiusIntEntry = DefaultManualEntry(self, {"target": 15.0}, ["15x Target Orbit Radius", ],
+                                                 selection_var=model.ratio_int_selection,
+                                                 entry_var=model.ratio_int_custom)
+        self.radiusIntEntry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
 
         ttk.Label(self, text="Final Radius Ratio:").grid(row=1, column=0, padx=(5, 0), sticky="e")
-        self.radiusEntry = DefaultManualEntry(self, {"target": 0.0}, ["Target Orbit Radius", ],
-                                              selection_var=model.ratio_final_selection,
-                                              entry_var=model.ratio_final_custom)
-        self.radiusEntry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.radiusFinalEntry = DefaultManualEntry(self, {"target": 1.0}, ["Target Orbit Radius", ],
+                                                   selection_var=model.ratio_final_selection,
+                                                   entry_var=model.ratio_final_custom)
+        self.radiusFinalEntry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         ttk.Label(self, text="Maneuver Time (s):").grid(row=2, column=0, padx=(5, 0), sticky="e")
         self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0},
@@ -126,8 +127,12 @@ class BiellipticSettings(ttk.Frame):
         Callback to handle any changes in the Hohmann settings model.
         :param _: Description
         """
-        self.delta_v_total.set(str(self.model.delta_v_total))
-        self.delta_t_total.set(str(self.model.delta_t))
+        try:
+            self.delta_v_total.set(str(self.model.delta_v_total))
+            self.delta_t_total.set(str(self.model.delta_t))
+        except tk.TclError:
+            self.delta_v_total.set("---")
+            self.delta_t_total.set("---")
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -167,9 +172,11 @@ class ManeuverSettings(ttk.Frame):
         if isinstance(model, HohmannModel):
             self.current_page = HohmannSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
+            self.page_name.set("Hohmann")
         elif isinstance(model, BiellipticModel):
             self.current_page = BiellipticSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
+            self.page_name.set("Bielliptic")
 
     @staticmethod
     def create_new(parent, settings: SettingsModel) -> 'ManeuverSettings':

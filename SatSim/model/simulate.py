@@ -3,7 +3,8 @@ from scipy.integrate import solve_ivp
 
 from SatSim.model.settings_model import SettingsModel
 from SatSim.model.orbit_model import OrbitModel
-from SatSim.model.maneuver_model import ImpulseConfig
+from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig
+
 
 class ImpulseResultsModel:
     def __init__(self, time: float, pos: np.ndarray, magnitude: float):
@@ -14,12 +15,12 @@ class ImpulseResultsModel:
 
 class Simulate:
 
-    def __init__(self, settings:SettingsModel):
+    def __init__(self, settings: SettingsModel):
         self.settings = settings
-        self.orbits:list[OrbitModel] = []
+        self.orbits: list[OrbitModel] = []
         self.orbit_events = []
-        self.maneuvers:list[ImpulseConfig] = []
-        self.impulse_results:list[ImpulseResultsModel] = []
+        self.maneuvers: list[ImpulseConfig] = []
+        self.impulse_results: list[ImpulseResultsModel] = []
         self.times = []
         self.states = []
 
@@ -31,16 +32,15 @@ class Simulate:
         return y_prime
 
     @staticmethod
-    def _impulse_event(t, y, self:'Simulate') -> float:
+    def _impulse_event(t, y, self: 'Simulate') -> float:
         if len(self.maneuvers) > 0:
             return t - self.maneuvers[0].time
         else:
             return 1
 
-
-    def _get_max_period(self) -> float:
-        # TODO: get max period needs to look at current pos, vel vectors, not config.
-        return np.max([orbit.config.period for orbit in self.orbits])
+    def _get_max_period(self, y0) -> float:
+        return np.max([OrbitConfig.from_pos_vel(y0[i * 6:i * 6 + 3], y0[i * 6 + 3:i * 6 + 6]).period for i in
+                       range(0, len(self.orbits))])
 
     def run_simulation(self):
         r"""
@@ -61,7 +61,7 @@ class Simulate:
         y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
 
         if len(self.maneuvers) > 0 and (self.maneuvers[0].time <= dt):
-            man = self.maneuvers.pop(0) # remove maneuver from list
+            man = self.maneuvers.pop(0)  # remove maneuver from list
             # Apply impulsive delta v in the direction of the current velocity vector
             v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
             y0[9:12] += v_norm * man.delta_v
@@ -71,7 +71,7 @@ class Simulate:
         self.states = [y0]
 
         # Get at least one orbit
-        t_final = self._get_max_period() * 1.1
+        t_final = self._get_max_period(y0) * 1.1
 
         while self.times[-1] < t_final:
             # Drop the first linspace point
@@ -86,7 +86,7 @@ class Simulate:
 
             # Index 0 corresponds to _impulse_events
             if len(sol.t_events[0]) > 0:
-                man = self.maneuvers.pop(0) # remove maneuver from list
+                man = self.maneuvers.pop(0)  # remove maneuver from list
                 y0 = sol.y[:, -1]
                 # Apply impulsive delta v in the direction of the current velocity vector
                 v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
@@ -96,8 +96,7 @@ class Simulate:
 
                 # Extend simulation length to capture at least a full rotation of the largest orbit
                 t0 = sol.t[-1]
-                t_final = self._get_max_period() * 1.1 + sol.t[-1]
-
+                t_final = self._get_max_period(y0) * 1.1 + sol.t[-1]
 
     def get_total_duration(self) -> float:
         """
