@@ -70,14 +70,16 @@ class View3D(ttk.Frame):
     Presents a 3D view of the Earth and satellite orbits.
     """
 
-    def __init__(self, parent: ttk.Frame):
+    def __init__(self, parent):
         """
         Constructor.
         :param parent: Parent frame.
         """
         super().__init__(parent)
+        self.body = ttk.Frame(self)
+        self.body.pack(fill="both", expand=True)
 
-        self.plot = Plot(self, projection='3d')
+        self.plot = Plot(self.body, projection='3d')
         self.plot.pack(fill='both', expand=True)
 
         self.ax = self.plot.ax

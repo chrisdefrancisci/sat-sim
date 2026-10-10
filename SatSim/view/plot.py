@@ -46,9 +46,9 @@ class ThemedToolbar(NavigationToolbar2Tk):
 
 
 class Plot(ttk.Frame):
-    def __init__(self, master, **kwargs):
+    def __init__(self, parent, **kwargs):
         projection = kwargs.pop("projection", None)
-        super().__init__(master, **kwargs)
+        super().__init__(parent, **kwargs)
         self.style = ttk.Style()
 
         self.figure = Figure(figsize=(5, 4), dpi=100)

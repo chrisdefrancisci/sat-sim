@@ -122,6 +122,91 @@ class OrbitConfig:
             true_anomaly=true_anomaly
         )
 
+    @staticmethod
+    def from_pos_vel(pos_vec: np.ndarray, vel_vec:np.ndarray) -> 'OrbitConfig':
+        r"""
+        Factory function to create orbital elements from position and velocity vectors in ECI frame.
+
+        :see also: Vallado, Algorithm 9, page 115
+        :param pos_vec:
+        :param vel_vec:
+        :return: Orbital Elements
+        """
+        def float_eq(val1, val2) -> bool:
+            TOLERANCE = 1e-9 # TODO determine if this is good or not
+            return abs(val1 - val2) < TOLERANCE
+
+        pos = np.linalg.norm(pos_vec)
+        vel = np.linalg.norm(vel_vec)
+
+        angular_momentum_vec = np.cross(pos_vec.flatten(), vel_vec.flatten()) # "h"
+        angular_momentum = np.linalg.norm(angular_momentum_vec)
+        k_hat = np.array([0, 0, 1]) # Unit vector in K direction
+        eccentricity_vec = 1/earth.mu * ((vel ** 2 - earth.mu / pos) * pos_vec - (pos_vec @ vel_vec) * vel_vec)
+        eccentricity = np.linalg.norm(eccentricity_vec)
+
+        if float_eq(eccentricity, 1.0):
+            raise ValueError("Parabolic orbits not yet suppported.")
+
+        node_vec = np.cross(k_hat, angular_momentum_vec)
+        node_norm = np.linalg.norm(node_vec)
+        # cos(Omega) = n_I / |n|
+        raan = np.rad2deg(np.arccos(node_vec[0]/np.linalg.norm(node_vec)))
+        raan = 360 - raan if node_vec[1] < 0 else raan
+
+        mech_energy = vel**2 / 2 - earth.mu / pos
+        semimajor = -earth.mu / (2 * mech_energy)
+
+        # cos(i) = h_K / |h|
+        inclination = np.rad2deg(np.arccos(angular_momentum_vec[2] / angular_momentum))
+
+        # cos(nu) = e / |e| dot r / |r|, may not apply
+        true_anomaly = np.rad2deg(np.arccos(np.dot(eccentricity_vec, pos_vec) / (eccentricity * pos)))
+        true_anomaly = 360 - true_anomaly if np.dot(pos_vec, vel_vec) < 0 else true_anomaly
+
+        # Handle special cases first: circular equitorial, circular inclined, elliptic equitorial
+        if float_eq(eccentricity, 0.0) and float_eq(inclination, 0.0):
+            # cos(lambda) = r_I / |r|
+            true_longitude = np.rad2deg(np.arccos(pos_vec[0] / pos))
+            true_longitude = 360 - true_longitude if pos_vec[1] < 0 else true_longitude
+            return OrbitConfig.from_circular_eq(
+                radius = semimajor,
+                true_longitude=true_longitude
+            )
+        elif float_eq(eccentricity, 0.0):
+            # cos(u) = n / |n| dot r / |r|
+            arg_latitude = np.rad2deg(np.arccos(np.dot(node_vec, pos_vec) / (node_norm * pos)))
+            arg_latitude = 360 - arg_latitude if pos_vec[2] < 0 else arg_latitude
+            return OrbitConfig.from_circular_inc(
+                radius = semimajor,
+                inclination=inclination,
+                node=raan,
+                arg_latitude=arg_latitude
+            )
+        elif float_eq(inclination, 0.0):
+            # cos(omega) = e_I / |e|
+            long_periapsis = np.rad2deg(np.arccos(eccentricity_vec[0] / eccentricity))
+            long_periapsis = 360 - long_periapsis if eccentricity_vec[1] < 0 else long_periapsis
+            return OrbitConfig.from_elliptical_eq(
+                semimajor=semimajor,
+                eccentricity=eccentricity,
+                long_periapsis=long_periapsis,
+                true_anomaly=true_anomaly
+            )
+
+        # cos(omega) = n / |n| dot e / |e|
+        arg_perigee = np.rad2deg(np.arccos(np.dot(node_vec, eccentricity_vec) / (node_norm * eccentricity)))
+        arg_perigee = 360 - arg_perigee if eccentricity_vec[2] < 0 else arg_perigee
+
+        return OrbitConfig(
+            semimajor=semimajor,
+            eccentricity=eccentricity,
+            inclination=inclination,
+            node=raan,
+            arg_perigee=arg_perigee,
+            true_anomaly=true_anomaly
+        )
+
     def to_position(self) -> np.ndarray:
         r"""
 
