@@ -17,12 +17,18 @@ class Simulate:
 
     def __init__(self, settings: SettingsModel):
         self.settings = settings
+        self.impulse_results: list[ImpulseResultsModel] = []
+        self.maneuvers: list[ImpulseConfig] = []
         self.orbits: list[OrbitModel] = []
         self.orbit_events = []
-        self.maneuvers: list[ImpulseConfig] = []
-        self.impulse_results: list[ImpulseResultsModel] = []
-        self.times = []
         self.states = []
+        self.times = []
+
+    def _restart(self):
+        self.impulse_results = []
+        self.maneuvers = []
+        self.orbits = []
+        self.orbit_events = []
 
     @staticmethod
     def _dynamics(t, y, self: 'Simulate') -> np.ndarray:
@@ -49,6 +55,7 @@ class Simulate:
 
         :return:
         """
+        self._restart()
         config = self.settings.to_config()
         dt = 5  # (s) TODO: make configurable
         self.orbits = [OrbitModel(config.target_orbit), OrbitModel(config.interceptor_orbit)]

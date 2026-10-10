@@ -25,12 +25,12 @@ class SimController(ttk.Frame):
         self._refresh_view()  # initial draw
 
     def _build_widgets(self):
-        info = ttk.Label(
+        self.info = ttk.Label(
             self,
             text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min",
             font=("TkDefaultFont", 10, "italic"),
         )
-        info.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+        self.info.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
         total_min = self.total_duration.get() / 60.0
 
@@ -74,12 +74,14 @@ class SimController(ttk.Frame):
             self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])
 
         for impulse in self.model.impulse_results:
-            self.view3d.plot.ax.scatter(*impulse.pos, marker='^', facecolors='none', edgecolors=palette[1], label="Impulse")
+            self.view3d.add_impulse(*impulse.pos, edgecolors=palette[1])
 
         self.total_duration.set(self.model.get_total_duration())
         self.start_scale.configure(to=self.total_duration.get() / 60)
         self.end_scale.configure(to=self.total_duration.get() / 60)
         self._set_range(0.0, self.total_duration.get() / 60)
+
+        self.info.config(text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min")
 
     def _on_slide(self):
         # Enforce start <= end so the selected window is always valid.

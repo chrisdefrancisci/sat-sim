@@ -3,6 +3,7 @@ import traceback
 import ttkbootstrap as ttk
 
 from matplotlib.axes import Axes
+from matplotlib.collections import PathCollection
 # from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3D projection)
 import numpy as np
 
@@ -90,6 +91,7 @@ class View3D(ttk.Frame):
         self.t_max = None
 
         self.orbits = []
+        self.impulses: list[PathCollection] = []
 
     def _draw_earth(self):
         """
@@ -138,14 +140,22 @@ class View3D(ttk.Frame):
         self.t_max = self.orbits[-1].times[-1]
 
         self.update_times(self.t_min, self.t_max)
-        # self.ax.legend()
         self._refresh()
+
+    def add_impulse(self, xs, ys, zs, *args, **kwargs):
+        self.impulses.append(
+            self.plot.ax.scatter(xs, ys, zs, *args, **kwargs, marker='^', facecolors='none', label="Impulse"))
 
     def clear(self):
         for orbit in self.orbits:
             orbit.clear()
+        for impulse in self.impulses:
+            impulse.remove()
+        self.impulses = []
+
         self.orbits = []
+        self.plot.ax.redraw_in_frame()
         self.t_min = None
         self.t_max = None
-        self.plot.set_legend_below()   # drops the now-empty legend
+        self.plot.set_legend_below()  # drops the now-empty legend
         self.plot.refresh()

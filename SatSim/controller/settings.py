@@ -130,7 +130,7 @@ class BiellipticSettings(ttk.Frame):
         try:
             self.delta_v_total.set(str(self.model.delta_v_total))
             self.delta_t_total.set(str(self.model.delta_t))
-        except tk.TclError:
+        except (tk.TclError, ZeroDivisionError):
             self.delta_v_total.set("---")
             self.delta_t_total.set("---")
 
