@@ -77,8 +77,8 @@ class Simulate:
         self.times = [t0]
         self.states = [y0]
 
-        # Get at least one orbit
-        t_final = self._get_max_period(y0) * 1.1
+        # Get at least one orbit or all manuevers
+        t_final = max(self._get_max_period(y0) * 1.1, max([man.time for man in self.maneuvers]))
 
         while self.times[-1] < t_final:
             # Drop the first linspace point

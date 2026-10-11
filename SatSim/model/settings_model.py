@@ -132,8 +132,7 @@ class HohmannModel:
         elif self.t_selection.get().lower() == "immediate":
             return 0
         elif self.t_selection.get().lower() == "rendezvous":
-            # TODO: implement Vallado Algorithm 45: Circular Coplanar Phasing (Different Orbits) pg 367
-            raise ValueError(f"{self.t_selection.get()} Not yet implemented")
+            return self.min_wait_time
         else:
             raise ValueError(f"Unknown option for time: {self.t_selection.get()}")
 
@@ -173,6 +172,28 @@ class HohmannModel:
     @property
     def delta_v_total(self) -> float:
         return abs(self.delta_v_1) + abs(self.delta_v_2)
+
+    @property
+    def min_wait_time(self) -> float:
+        r"""
+        Minimum wait time (number of extra revolutions = 0) to rendezvous with Hohmann transfer.
+
+        :see also: Vallado, Algorithm 45, page 367
+        :return: Time (s)
+        """
+        a_tgt = self.target_model.to_config().radius
+        a_int = self.interceptor_model.to_config().radius
+        ang_momentum_tgt = np.sqrt(earth.mu / a_tgt ** 3)
+        ang_momentum_int = np.sqrt(earth.mu / a_int ** 3)
+        lead_angle = ang_momentum_tgt * self.delta_t
+
+        # Pre-burn phase angle
+        phase_angle_init = np.deg2rad(
+            self.target_model.to_config().true_anomaly - self.interceptor_model.to_config().true_anomaly)
+        # Desired phase angle for rendezvous
+        phase_angle_begin = np.pi - lead_angle
+
+        return (phase_angle_begin - phase_angle_init + 2.0 * np.pi) / (ang_momentum_int - ang_momentum_tgt)
 
     def register_cb(self, cb) -> list[tuple]:
         """
