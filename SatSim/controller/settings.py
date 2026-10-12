@@ -11,22 +11,22 @@ from SatSim.controller.defaults_manual_entry import DefaultManualEntry
 
 class SatelliteSettings(ttk.Frame):
     """
-    Options for the target and interceptor satellites.
+    Options for the target and chaser satellites.
 
-    The target satellite will only have orbit parameters, while the interceptor satellite will have initial orbit parameters
+    The target satellite will only have orbit parameters, while the chaser satellite will have initial orbit parameters
     and sensor and thruster parameters.
     """
 
-    def __init__(self, parent, target_model: OrbitModel, interceptor_model: OrbitModel):
+    def __init__(self, parent, target_model: OrbitModel, chaser_model: OrbitModel):
         super().__init__(parent)
         target_frame = ttk.LabelFrame(self, text="Target")
         target_frame.pack(side="top", fill="both", expand=True, pady=5)
         self.target_entry = OrbitEntry(target_frame, target_model)
         self.target_entry.pack(side="top", fill="both", expand=True)
-        interceptor_frame = ttk.LabelFrame(self, text="Interceptor")
-        interceptor_frame.pack(side="top", fill="both", expand=True, pady=5)
-        self.interceptor_entry = OrbitEntry(interceptor_frame, interceptor_model)
-        self.interceptor_entry.pack(side="top", fill="both", expand=True)
+        chaser_frame = ttk.LabelFrame(self, text="Chaser")
+        chaser_frame.pack(side="top", fill="both", expand=True, pady=5)
+        self.chaser_entry = OrbitEntry(chaser_frame, chaser_model)
+        self.chaser_entry.pack(side="top", fill="both", expand=True)
 
 
 class HohmannSettings(ttk.Frame):
@@ -191,7 +191,7 @@ class ManeuverSettings(ttk.Frame):
             self.current_page.destroy()
 
         # Build and show the new page
-        new_model = self.MODELS[name](self.settings.target_orbit, self.settings.interceptor_orbit)
+        new_model = self.MODELS[name](self.settings.target_orbit, self.settings.chaser_orbit)
         self.current_page = self.PAGES[name](self.content, new_model)
         self.settings.orbit_maneuvers[self.maneuver_idx] = new_model
         self.current_page.pack(fill="both", expand=True)
@@ -241,7 +241,7 @@ class SettingsDialog(ttk.Toplevel):
         self.parent = parent
 
         self.satellite_settings = SatelliteSettings(self.notebook, self.settings.target_orbit,
-                                                    self.settings.interceptor_orbit)
+                                                    self.settings.chaser_orbit)
         self.maneuver_settings = []
 
         self._build_ui()

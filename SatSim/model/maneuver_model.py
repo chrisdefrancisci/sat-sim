@@ -247,5 +247,5 @@ class OrbitConfig:
 @dataclass(frozen=True)
 class SimConfig:
     target_orbit: OrbitConfig
-    interceptor_orbit: OrbitConfig
+    chaser_orbit: OrbitConfig
     maneuvers: list[ImpulseConfig]
