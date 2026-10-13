@@ -52,4 +52,4 @@ class ResultsView(ttk.Frame):
         self.notebook.add(self.viewQuadPlots, text="Error Plots")
 
         self.ax_lvlh = self.viewQuadPlots.plot_ne.ax
-        self.ax_lvlh.set_title('Local-Vertical Local-Horizontal')
+        self.ax_lvlh.set_title('Target Local Vertical, Local Horizontal')

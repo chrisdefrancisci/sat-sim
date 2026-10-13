@@ -143,7 +143,7 @@ class Simulate:
         """
         if len(self.times) == 0:
             return np.array([]), np.array([])
-        return np.array(self.times), np.array(self.states)[:, orbit_idx * 6 + 3:orbit_idx * 6 + 6]
+        return np.array(self.times), np.array(self.states).T[orbit_idx * 6 + 3:orbit_idx * 6 + 6, :]
 
     def get_pos_lvlh(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -152,7 +152,7 @@ class Simulate:
         _, v_target = self.get_full_velocities(0)
         t, r_chaser = self.get_full_positions(1)
 
-        pos_eci = r_chaser - r_target # TODO: should this be flipped?
+        err_eci = r_chaser - r_target # TODO: should this be flipped?
         # Can this be done for 3 by N?
         radial = r_chaser / np.linalg.norm(r_chaser, axis=0, keepdims=True)
         angular_momentum = np.cross(r_target, v_target, axis=0)
@@ -160,8 +160,7 @@ class Simulate:
         # In track only aligns with velocity for circular orbits
         in_track = np.cross(cross_track, radial, axis=0)
 
-        rotation = np.vstack([radial, cross_track, in_track])
-
-        pos_lvlh = rotation @ pos_eci
-        return t, pos_lvlh
+        rotation = np.stack((radial, in_track, cross_track), axis=1)
+        err_lvlh = (rotation @ err_eci[:, :, None])[:, :, 0]
+        return t, err_lvlh
 

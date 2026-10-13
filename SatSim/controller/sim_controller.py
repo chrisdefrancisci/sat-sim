@@ -80,8 +80,8 @@ class SimController(ttk.Frame):
             self.view.view3d.add_impulse(*impulse.pos, edgecolors=palette[1])
 
         # Update view - error
-        # _, pos_lvlh = self.model.get_pos_lvlh()
-        # self.view.ax_lvlh.plot(pos_lvlh[:, 0], pos_lvlh[:, 1])
+        _, pos_lvlh = self.model.get_pos_lvlh()
+        self.view.ax_lvlh.plot(pos_lvlh[0, :], pos_lvlh[1, :])
 
         # Update controller
         self.total_duration.set(self.model.get_total_duration())
