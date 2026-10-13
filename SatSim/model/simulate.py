@@ -160,7 +160,8 @@ class Simulate:
         # In track only aligns with velocity for circular orbits
         in_track = np.cross(cross_track, radial, axis=0)
 
-        rotation = np.stack((radial, in_track, cross_track), axis=1)
-        err_lvlh = (rotation @ err_eci[:, :, None])[:, :, 0]
+        rotation = np.stack((radial, in_track, cross_track), axis=0) # Should have (3,3,N) shape
+        # err_lvlh = (rotation @ err_eci[:, :, None])[:, :, 0] # Back to (3, N) shape
+        err_lvlh =  np.einsum('ijn,jn->in', rotation, err_eci)
         return t, err_lvlh
 

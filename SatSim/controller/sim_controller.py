@@ -65,6 +65,7 @@ class SimController(ttk.Frame):
 
     def _run(self):
         self.view.view3d.clear()
+        self.view.ax_lvlh.clear()
 
         # Run model
         self.model.run_simulation()
@@ -81,7 +82,7 @@ class SimController(ttk.Frame):
 
         # Update view - error
         _, pos_lvlh = self.model.get_pos_lvlh()
-        self.view.ax_lvlh.plot(pos_lvlh[0, :], pos_lvlh[1, :])
+        self.view.ax_lvlh.add_positions(full_t, pos_lvlh, color=palette[1], label=labels[1])
 
         # Update controller
         self.total_duration.set(self.model.get_total_duration())
@@ -122,3 +123,4 @@ class SimController(ttk.Frame):
         t_max = self.end_var.get() * 60.0
 
         self.view.view3d.update_times(t_min, t_max)
+        self.view.ax_lvlh.update_times(t_min, t_max)

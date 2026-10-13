@@ -1,16 +1,14 @@
 import tkinter as tk
-import traceback
 import ttkbootstrap as ttk
 
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
+from matplotlib.lines import Line2D
 # from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3D projection)
 import numpy as np
 
 from SatSim.common import earth
 from SatSim.view.plot import Plot
-
-import traceback
 
 
 class OrbitView:
@@ -24,23 +22,22 @@ class OrbitView:
 
         colors = ttk.Style().colors
 
-        self.full_path = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
+        self.full_path:list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
                                       color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
-        self.timed_path = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
+        self.timed_path:list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
                                        linewidth=3.0, *args, **kwargs)
-        # kwargs.pop('label')
-        # , label='_nolegend_'
-        self.marker = self.ax.scatter(*pos[:,-1], *args, **kwargs)
+        self.marker:PathCollection|None = self.ax.scatter(*pos[:,-1], *args, **kwargs)
 
     def clear(self):
         """
         Clears all plots and markers.
         """
         self.full_path[0].remove()
-        self.full_path = None
+        self.full_path = []
         self.timed_path[0].remove()
-        self.timed_path = None
-        self.marker.remove()
+        self.timed_path = []
+        if self.marker is not None:
+            self.marker.remove()
         self.marker = None
         self.ax.redraw_in_frame()
 
@@ -55,8 +52,8 @@ class OrbitView:
         if not indices.any():
             indices = np.zeros_like(self.times, dtype=bool)
             indices[np.argmin(np.abs(self.times - t_max))] = True
-        if self.timed_path is not None:
-            self.timed_path[0].remove()  # error here when timed_path is 0 length or small? I.e., when end <= begin
+        if len(self.timed_path) != 0:
+            self.timed_path[0].remove()
         if self.marker is not None:
             self.marker.remove()
 
