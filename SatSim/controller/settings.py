@@ -215,6 +215,7 @@ class SettingsDialog(ttk.Toplevel):
         self.body.columnconfigure(0, weight=1)
         self.notebook = ttk.Notebook(self.body)
         self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
         self.status_text = ttk.Label(self.body, width=50)
         self.status_text.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
@@ -263,15 +264,25 @@ class SettingsDialog(ttk.Toplevel):
         self.maneuver_settings.append(ManeuverSettings.create_new(self.notebook, self.settings))
         self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
         self.remove.state(["!disabled"])
+        self.notebook.select(self.notebook.index("end") - 1)
         self.status_text.config(text="Maneuver Added", bootstyle="info")
 
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
         if active_index > 0:
+            self.maneuver_settings.pop(active_index - 1) # Assumes one other tab
+            self.settings.orbit_maneuvers.pop(active_index - 1)
             self.notebook.forget(active_index)
         if self.notebook.index("end") <= 1:
             self.remove.state(["disabled"])
         self.status_text.config(text="Maneuver Removed", bootstyle="warning")
+
+    def _on_tab_changed(self, event):
+        if self.notebook.index("current") == 0:
+            self.remove.state(["disabled"])
+        else:
+            self.remove.state(["!disabled"])
+
 
     def _build_ui(self):
         self.notebook.add(self.satellite_settings, text="Satellite Settings")
