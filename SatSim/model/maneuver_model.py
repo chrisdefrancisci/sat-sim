@@ -160,11 +160,7 @@ class OrbitConfig:
         # cos(i) = h_K / |h|
         inclination = np.rad2deg(np.arccos(angular_momentum_vec[2] / angular_momentum))
 
-        # cos(nu) = e / |e| dot r / |r|, may not apply
-        true_anomaly = np.rad2deg(np.arccos(np.dot(eccentricity_vec, pos_vec) / (eccentricity * pos)))
-        true_anomaly = 360 - true_anomaly if np.dot(pos_vec, vel_vec) < 0 else true_anomaly
-
-        # Handle special cases first: circular equitorial, circular inclined, elliptic equitorial
+        # Handle special cases first: circular equitorial, circular inclined (no true anomaly if eccentricity is 0), then elliptic equitorial
         if float_eq(eccentricity, 0.0) and float_eq(inclination, 0.0):
             # cos(lambda) = r_I / |r|
             true_longitude = np.rad2deg(np.arccos(pos_vec[0] / pos))
@@ -183,7 +179,12 @@ class OrbitConfig:
                 node=raan,
                 arg_latitude=arg_latitude
             )
-        elif float_eq(inclination, 0.0):
+        
+        # cos(nu) = e / |e| dot r / |r|, may not apply
+        true_anomaly = np.rad2deg(np.arccos(np.dot(eccentricity_vec, pos_vec) / (eccentricity * pos)))
+        true_anomaly = 360 - true_anomaly if np.dot(pos_vec, vel_vec) < 0 else true_anomaly
+
+        if float_eq(inclination, 0.0):
             # cos(omega) = e_I / |e|
             long_periapsis = np.rad2deg(np.arccos(eccentricity_vec[0] / eccentricity))
             long_periapsis = 360 - long_periapsis if eccentricity_vec[1] < 0 else long_periapsis

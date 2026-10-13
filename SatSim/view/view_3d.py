@@ -24,13 +24,13 @@ class OrbitView:
 
         colors = ttk.Style().colors
 
-        self.full_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
+        self.full_path = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
                                       color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
-        self.timed_path = self.ax.plot(self.pos[:, 0], self.pos[:, 1], self.pos[:, 2],
+        self.timed_path = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
                                        linewidth=3.0, *args, **kwargs)
         # kwargs.pop('label')
         # , label='_nolegend_'
-        self.marker = self.ax.scatter(*pos[-1], *args, **kwargs)
+        self.marker = self.ax.scatter(*pos[:,-1], *args, **kwargs)
 
     def clear(self):
         """
@@ -60,9 +60,9 @@ class OrbitView:
         if self.marker is not None:
             self.marker.remove()
 
-        self.timed_path = self.ax.plot(self.pos[indices, 0], self.pos[indices, 1], self.pos[indices, 2], *self.args,
+        self.timed_path = self.ax.plot(self.pos[0, indices], self.pos[1, indices], self.pos[2, indices], *self.args,
                                        **self.kwargs)
-        self.marker = self.ax.scatter(*self.pos[indices][-1], *self.args, **self.kwargs)
+        self.marker = self.ax.scatter(*self.pos[:, indices][:, -1], *self.args, **self.kwargs)
         self.ax.redraw_in_frame()
 
 

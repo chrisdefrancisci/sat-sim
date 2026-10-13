@@ -78,7 +78,9 @@ class Simulate:
         self.states = [y0]
 
         # Get at least one orbit or all manuevers
-        t_final = max(self._get_max_period(y0) * 1.1, max([man.time for man in self.maneuvers]))
+        t_final = self._get_max_period(y0) * 1.1
+        if len(self.maneuvers) > 0:
+            t_final = max(t_final, max([man.time for man in self.maneuvers]))
 
         while self.times[-1] < t_final:
             # Drop the first linspace point
@@ -121,7 +123,7 @@ class Simulate:
         :return: The times (s) and positions in the geocentric reference frame in km.
         """
         time_idxs = (np.asarray(self.times) >= t_min) & (np.asarray(self.times) <= t_max)
-        return np.array(self.times)[time_idxs], np.array(self.states)[time_idxs, orbit_idx:orbit_idx + 3]
+        return np.array(self.times)[time_idxs], np.array(self.states).T[orbit_idx:orbit_idx + 3, time_idxs]
 
     def get_full_positions(self, orbit_idx: int) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -131,4 +133,35 @@ class Simulate:
         """
         if len(self.times) == 0:
             return np.array([]), np.array([])
-        return np.array(self.times), np.array(self.states)[:, orbit_idx * 6:orbit_idx * 6 + 3]
+        return np.array(self.times), np.array(self.states).T[orbit_idx * 6:orbit_idx * 6 + 3, :]
+
+    def get_full_velocities(self, orbit_idx: int) -> tuple[np.ndarray, np.ndarray]:
+        """
+
+        :param orbit_idx:
+        :return: The times (s) and velocities in the geocentric reference frame in km.
+        """
+        if len(self.times) == 0:
+            return np.array([]), np.array([])
+        return np.array(self.times), np.array(self.states)[:, orbit_idx * 6 + 3:orbit_idx * 6 + 6]
+
+    def get_pos_lvlh(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        """
+        _, r_target = self.get_full_positions(0)
+        _, v_target = self.get_full_velocities(0)
+        t, r_chaser = self.get_full_positions(1)
+
+        pos_eci = r_chaser - r_target # TODO: should this be flipped?
+        # Can this be done for 3 by N?
+        radial = r_chaser / np.linalg.norm(r_chaser, axis=0, keepdims=True)
+        angular_momentum = np.cross(r_target, v_target, axis=0)
+        cross_track = angular_momentum / np.linalg.norm(angular_momentum, axis=0, keepdims=True)
+        # In track only aligns with velocity for circular orbits
+        in_track = np.cross(cross_track, radial, axis=0)
+
+        rotation = np.vstack([radial, cross_track, in_track])
+
+        pos_lvlh = rotation @ pos_eci
+        return t, pos_lvlh
+

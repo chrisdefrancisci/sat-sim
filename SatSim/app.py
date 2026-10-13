@@ -16,14 +16,13 @@ class App(ttk.Frame):
         self.pack(fill=tk.BOTH, expand=True)
 
         self.results = ResultsView(self)
-        self.view_3d = self.results.view3d
         
         self.settings = SettingsModel()
 
         self.sim = Simulate(self.settings)
 
         self.toolbar = Toolbar(self, self.settings)
-        self.controller = SimController(self, self.sim, self.view_3d)
+        self.controller = SimController(self, self.sim, self.results)
 
         self.toolbar.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
         self.results.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)

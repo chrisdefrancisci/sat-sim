@@ -2,7 +2,7 @@ import tkinter as tk
 import ttkbootstrap as ttk
 
 from SatSim.model.simulate import Simulate
-from SatSim.view.view_3d import View3D
+from SatSim.view.view_results import ResultsView
 
 
 class SimController(ttk.Frame):
@@ -10,10 +10,10 @@ class SimController(ttk.Frame):
     Runs the simulation and distributes the results to different plots.
     """
 
-    def __init__(self, parent, model: Simulate, view3d: View3D, *args, **kwargs):
+    def __init__(self, parent, model: Simulate, view: ResultsView, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
-        self.view3d = view3d
+        self.view = view
 
         self.total_duration = ttk.DoubleVar(value=0)
 
@@ -64,23 +64,30 @@ class SimController(ttk.Frame):
         self.columnconfigure(1, weight=1)
 
     def _run(self):
-        self.view3d.clear()
+        self.view.view3d.clear()
 
+        # Run model
         self.model.run_simulation()
+
+        # Update view - 3D
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
         labels = ['Target', 'Chaser']
         for idx in range(0, len(self.model.orbits)):
             full_t, full_pos = self.model.get_full_positions(idx)
-            self.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])
+            self.view.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])
 
         for impulse in self.model.impulse_results:
-            self.view3d.add_impulse(*impulse.pos, edgecolors=palette[1])
+            self.view.view3d.add_impulse(*impulse.pos, edgecolors=palette[1])
 
+        # Update view - error
+        # _, pos_lvlh = self.model.get_pos_lvlh()
+        # self.view.ax_lvlh.plot(pos_lvlh[:, 0], pos_lvlh[:, 1])
+
+        # Update controller
         self.total_duration.set(self.model.get_total_duration())
         self.start_scale.configure(to=self.total_duration.get() / 60)
         self.end_scale.configure(to=self.total_duration.get() / 60)
         self._set_range(0.0, self.total_duration.get() / 60)
-
         self.info.config(text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min")
 
     def _on_slide(self):
@@ -114,4 +121,4 @@ class SimController(ttk.Frame):
         t_min = self.start_var.get() * 60.0
         t_max = self.end_var.get() * 60.0
 
-        self.view3d.update_times(t_min, t_max)
+        self.view.view3d.update_times(t_min, t_max)
