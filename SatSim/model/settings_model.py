@@ -217,10 +217,10 @@ class HohmannModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self) -> list[ImpulseConfig]:
+    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
         return [
-            ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=self.t_start + self.delta_t, delta_v=self.delta_v_2)
+            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
 
@@ -421,11 +421,11 @@ class BiellipticModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self) -> list[ImpulseConfig]:
+    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
         return [
-            ImpulseConfig(time=self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=self.t_start + self.delta_t_1, delta_v=self.delta_v_2),
-            ImpulseConfig(time=self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
+            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseConfig(time=t_offset + self.t_start + self.delta_t_1, delta_v=self.delta_v_2),
+            ImpulseConfig(time=t_offset + self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
         ]
 
 
@@ -437,7 +437,7 @@ class SettingsModel:
     def __init__(self):
         self.target_orbit = OrbitModel()
         self.chaser_orbit = OrbitModel()
-        self.orbit_maneuvers = []
+        self.orbit_maneuvers:list[HohmannModel|BiellipticModel] = []
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -454,6 +454,8 @@ class SettingsModel:
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
         maneuvers: list[ImpulseConfig] = []
+        t0 = 0.0 # Ensure maneuvers are timed to not overlap
         for m in self.orbit_maneuvers:
-            maneuvers.extend(m.to_config())
+            maneuvers.extend(m.to_config(t0))
+            t0 += maneuvers[-1].time
         return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)

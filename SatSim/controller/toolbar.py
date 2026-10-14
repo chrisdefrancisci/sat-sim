@@ -12,6 +12,8 @@ class Toolbar(ttk.Frame):
 
         self.pack(fill=tk.BOTH, expand=True)
 
+        # See full list of icons here: 
+        # https://icons.getbootstrap.com/
         self.settings = ttk.Button(self, icon="gear-fill", icon_only=True, bootstyle="primary",
                                    command=self.open_settings)
         ttk.ToolTip(self.settings, text="Settings", bootstyle="info")

@@ -152,16 +152,44 @@ class Simulate:
         _, v_target = self.get_full_velocities(0)
         t, r_chaser = self.get_full_positions(1)
 
-        err_eci = r_chaser - r_target # TODO: should this be flipped?
-        # Can this be done for 3 by N?
-        radial = r_chaser / np.linalg.norm(r_chaser, axis=0, keepdims=True)
+        err_eci = r_target - r_chaser
+        # Create unit vectors in radial, cross track, and in-track direction
+        radial = r_target / np.linalg.norm(r_target, axis=0, keepdims=True)
         angular_momentum = np.cross(r_target, v_target, axis=0)
         cross_track = angular_momentum / np.linalg.norm(angular_momentum, axis=0, keepdims=True)
         # In track only aligns with velocity for circular orbits
         in_track = np.cross(cross_track, radial, axis=0)
 
         rotation = np.stack((radial, in_track, cross_track), axis=0) # Should have (3,3,N) shape
-        # err_lvlh = (rotation @ err_eci[:, :, None])[:, :, 0] # Back to (3, N) shape
+        # Back to (3, N) shape
         err_lvlh =  np.einsum('ijn,jn->in', rotation, err_eci)
         return t, err_lvlh
+
+
+    def get_vel_lvlh(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        """
+        _, r_target = self.get_full_positions(0)
+        _, v_target = self.get_full_velocities(0)
+        _, r_chaser = self.get_full_positions(1)
+        t, v_chaser = self.get_full_velocities(1)
+
+        r_diff_eci = r_target - r_chaser
+        err_eci = v_chaser - v_target
+        # Can this be done for 3 by N
+        radial = r_target / np.linalg.norm(r_target, axis=0, keepdims=True)
+        angular_momentum = np.cross(r_target, v_target, axis=0)
+        cross_track = angular_momentum / np.linalg.norm(angular_momentum, axis=0, keepdims=True)
+        # In track only aligns with velocity for circular orbits
+        in_track = np.cross(cross_track, radial, axis=0)
+
+        rotation = np.stack((radial, in_track, cross_track), axis=0) # Should have (3,3,N) shape
+
+        r_diff_lvlh =  np.einsum('ijn,jn->in', rotation, r_diff_eci)
+        # Compute angular velocity
+        omega_eci = np.cross(r_target, v_target, axis=0) / np.sum(r_target**2, axis=0)
+        omega_lvlh = np.einsum('ijn,jn->in', rotation, omega_eci)
+
+        v_lvlh = np.einsum('ijn,jn->in', rotation, err_eci) - np.cross(omega_lvlh, r_diff_lvlh, axis=0)
+        return t, v_lvlh
 

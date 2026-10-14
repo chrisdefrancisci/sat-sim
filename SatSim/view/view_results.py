@@ -44,5 +44,12 @@ class ResultsView(ttk.Frame):
         self.viewQuadPlots = QuadPlotsView(self.notebook)
         self.notebook.add(self.viewQuadPlots, text="Error Plots")
 
-        self.ax_lvlh = self.viewQuadPlots.plot_ne
-        self.ax_lvlh.ax.set_title('Target Local Vertical, Local Horizontal')
+        self.pos_lvlh = self.viewQuadPlots.plot_ne
+        self.pos_lvlh.ax.set_title('Chaser Pos in Target Local Vertical, Local Horizontal')
+        self.pos_lvlh.ax.set_xlabel('Radial (km)')
+        self.pos_lvlh.ax.set_ylabel('In-track (km)')
+
+        self.vel_lvlh = self.viewQuadPlots.plot_se
+        self.vel_lvlh.ax.set_title('Chaser Vel in Target Local Vertical, Local Horizontal')
+        self.vel_lvlh.ax.set_xlabel('Radial (km/s)')
+        self.vel_lvlh.ax.set_ylabel('In-track (km/s)')
