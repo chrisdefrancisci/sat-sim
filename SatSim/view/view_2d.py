@@ -85,7 +85,7 @@ class View2D(ttk.Frame):
         for path in self.paths:
             path.update(t_min, t_max)
 
-        self.plot.set_legend_below()
+        self.plot.set_legend_below(bottom=0.2)
         self.plot.refresh()
 
     def add_positions(self, *args, **kwargs) -> None:
@@ -95,7 +95,7 @@ class View2D(ttk.Frame):
 
         self.update_times(self.t_min, self.t_max)
 
-        self.plot.set_legend_below()
+        self.plot.set_legend_below(bottom=0.2)
         self.plot.refresh()
 
     def clear(self) -> None:
@@ -105,5 +105,5 @@ class View2D(ttk.Frame):
         self.plot.ax.redraw_in_frame()
         self.t_min = None
         self.t_max = None
-        self.plot.set_legend_below()  # drops the now-empty legend
+        self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
         self.plot.refresh()

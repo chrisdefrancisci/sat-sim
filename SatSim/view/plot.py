@@ -77,7 +77,7 @@ class Plot(ttk.Frame):
             for text in legend.get_texts():
                 text.set_color(c.fg)
 
-    def set_legend_below(self):
+    def set_legend_below(self, bottom=0.1):
         """
         Place a single-row legend beneath the figure, built from the
         axes' labeled artists. Duplicate labels are collapsed.
@@ -98,7 +98,7 @@ class Plot(ttk.Frame):
                 list(entries.values()), list(entries.keys()),
                 loc="lower center", ncol=len(entries), frameon=True,
             )
-            self.figure.subplots_adjust(bottom=0.1)  # leave room for the legend
+            self.figure.subplots_adjust(bottom=bottom)  # leave room for the legend
 
         self._style_legends()
 
