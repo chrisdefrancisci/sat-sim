@@ -7,7 +7,7 @@ import ttkbootstrap as ttk
 
 from SatSim.view.plot import Plot
 
-class PositionView:
+class LineView:
     def __init__(self, ax: Axes, times: np.ndarray, pos: np.ndarray, *args, **kwargs):
         self.ax = ax
         self.times = times
@@ -76,7 +76,7 @@ class View2D(ttk.Frame):
         self.t_min = None
         self.t_max = None
 
-        self.paths: list[PositionView] = []
+        self.paths: list[LineView] = []
 
 
     def update_times(self, t_min, t_max):
@@ -89,7 +89,7 @@ class View2D(ttk.Frame):
         self.plot.refresh()
 
     def add_positions(self, *args, **kwargs) -> None:
-        self.paths.append(PositionView(self.ax, *args, **kwargs))
+        self.paths.append(LineView(self.ax, *args, **kwargs))
         self.t_min = self.paths[-1].times[0]
         self.t_max = self.paths[-1].times[-1]
 

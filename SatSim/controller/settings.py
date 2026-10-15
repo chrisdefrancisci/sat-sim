@@ -158,10 +158,8 @@ class ManeuverSettings(ttk.Frame):
         self.settings = settings
         self.maneuver_idx = maneuver_idx
 
-        self.page_name = ttk.StringVar(value=list(self.PAGES.keys())[0])
-        ttk.OptionMenu(self, self.page_name, self.page_name.get(),
-                       *list(self.PAGES.keys()), command=self.change_page
-                       ).grid(row=0, column=0, sticky="", padx=5, pady=5)
+        self.page_label = ttk.Label(self)
+        self.page_label.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
         self.content = ttk.Frame(self)
         self.content.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.rowconfigure(1, weight=1)
@@ -172,30 +170,64 @@ class ManeuverSettings(ttk.Frame):
         if isinstance(model, HohmannModel):
             self.current_page = HohmannSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
-            self.page_name.set("Hohmann")
+            self.page_label.config(text="Hohmann Transfer")
         elif isinstance(model, BiellipticModel):
             self.current_page = BiellipticSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
-            self.page_name.set("Bielliptic")
+            self.page_label.config(text="Bielliptic Transfer")
 
     @staticmethod
-    def create_new(parent, settings: SettingsModel) -> 'ManeuverSettings':
+    def create_new(parent, settings: SettingsModel, type: str) -> 'ManeuverSettings':
         idx = len(settings.orbit_maneuvers)
-        settings.orbit_maneuvers.append(None)
+        settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, settings.chaser_orbit))
         new_page = ManeuverSettings(parent, settings, idx)
-        new_page.change_page(new_page.page_name.get())
         return new_page
 
-    def change_page(self, name) -> None:
-        if self.current_page is not None:
-            self.current_page.destroy()
 
-        # Build and show the new page
-        new_model = self.MODELS[name](self.settings.target_orbit, self.settings.chaser_orbit)
-        self.current_page = self.PAGES[name](self.content, new_model)
-        self.settings.orbit_maneuvers[self.maneuver_idx] = new_model
-        self.current_page.pack(fill="both", expand=True)
+class ManeuverDialog(ttk.Toplevel):
+    def __init__(self, parent, options=None):
+        super().__init__(parent,
+            transient=parent,  # stays on top of the parent
+            resizable=(False, False)
+        )
+        # self.geometry("250x150")
+        self.title('Manuever Selection')
+        self.parent = parent
+        self.grab_set()  # Make window modal
+        self.focus_set()
 
+        self.selected_value = None
+        options = list(ManeuverSettings.PAGES.keys())
+
+        ttk.Label(self, text="Add Maneuver:", padding=10).pack()
+
+        self.combo = ttk.Combobox(self, values=options, state="readonly")
+        if options:
+            self.combo.current(0)
+        self.combo.pack(pady=10)
+
+        btn_ok = ttk.Button(self, text="OK", command=self.on_ok, bootstyle="primary")
+        btn_ok.pack(pady=5)
+
+        # Wait here until this window is destroyed
+        self._center_on_parent()
+        parent.wait_window(self)
+
+    def on_ok(self):
+        self.selected_value = self.combo.get()
+        self.destroy()
+        
+    def _center_on_parent(self):
+        """
+        Helper method to center the window on its parent. 
+
+        Centered in the x direction, aligned to the top of the window in the y direction.
+        """
+        self.update_idletasks()
+        p = self.parent
+        x = p.winfo_rootx() + (p.winfo_width() - self.winfo_width()) // 2
+        y = p.winfo_rooty()
+        self.geometry(f"+{x}+{y}")
 
 class SettingsDialog(ttk.Toplevel):
     """
@@ -261,11 +293,14 @@ class SettingsDialog(ttk.Toplevel):
             self.remove.state(["!disabled"])
 
     def _add_maneuver(self):
-        self.maneuver_settings.append(ManeuverSettings.create_new(self.notebook, self.settings))
-        self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
-        self.remove.state(["!disabled"])
-        self.notebook.select(self.notebook.index("end") - 1)
-        self.status_text.config(text="Maneuver Added", bootstyle="info")
+        dialog = ManeuverDialog(self)
+        type = dialog.selected_value
+        if type is not None:
+            self.maneuver_settings.append(ManeuverSettings.create_new(self.notebook, self.settings, type))
+            self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
+            self.remove.state(["!disabled"])
+            self.notebook.select(self.notebook.index("end") - 1)
+            self.status_text.config(text="Maneuver Added", bootstyle="info")
 
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
