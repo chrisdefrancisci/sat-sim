@@ -176,13 +176,33 @@ class ManeuverSettings(ttk.Frame):
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Bielliptic Transfer")
 
+        self.traces = []
+
     @staticmethod
     def create_new(parent, settings: SettingsModel, type: str) -> 'ManeuverSettings':
+        """
+        Factory function to create a new page from string.
+        
+        :param parent: Description
+        :param settings: Description
+        :param type: Description
+        :return: ManeuverSettings page
+        """
         idx = len(settings.orbit_maneuvers)
         settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, settings.chaser_orbit))
         new_page = ManeuverSettings(parent, settings, idx)
         return new_page
 
+    def refresh(self, *args):
+        if self.current_page is not None:
+            self.current_page.refresh()
+
+    def _on_destroy(self, event) -> None:
+        # <Destroy> event also fires for child widgets; only react to this frame.
+        if event.widget is not self:
+            return
+        for var, trace_id in self.traces:
+            var.trace_remove("write", trace_id)
 
 class ManeuverDialog(ttk.Toplevel):
     def __init__(self, parent, options=None):
@@ -296,8 +316,18 @@ class SettingsDialog(ttk.Toplevel):
         dialog = ManeuverDialog(self)
         type = dialog.selected_value
         if type is not None:
-            self.maneuver_settings.append(ManeuverSettings.create_new(self.notebook, self.settings, type))
+            new_maneuver = ManeuverSettings.create_new(self.notebook, self.settings, type)
+            self.maneuver_settings.append(new_maneuver)
             self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
+            # Register callbacks to either the orbits or previous maneuvers. 
+            # Should I register all maneuver pages to the orbit settings? 
+            # May cause excessive callbacks if orbit changes -> callback maneuver 1 and manuever 2; manuever 1 has changed -> callback maneuver 2
+            if len(self.maneuver_settings) == 1: 
+                new_maneuver.traces.append(self.settings.target_orbit.register_cb(new_maneuver.refresh))
+                new_maneuver.traces.append(self.settings.chaser_orbit.register_cb(new_maneuver.refresh))
+            else:
+                new_maneuver.traces.append(self.maneuver_settings[-1].current_page.model.register_cb(new_maneuver.refresh))
+            
             self.remove.state(["!disabled"])
             self.notebook.select(self.notebook.index("end") - 1)
             self.status_text.config(text="Maneuver Added", bootstyle="info")
