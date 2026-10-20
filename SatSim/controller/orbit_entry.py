@@ -109,7 +109,7 @@ class OrbitEntry(ttk.Frame):
         return f"{value:.10g}"
 
     def _offset(self):
-        return earth.mu if self._semimajor_mode else 0.0
+        return earth.radius if self._semimajor_mode else 0.0
 
     def _on_entry_changed(self, *_):
         if self._syncing:

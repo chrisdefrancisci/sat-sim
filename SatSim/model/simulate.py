@@ -105,7 +105,7 @@ class Simulate:
 
                 # Extend simulation length to capture at least a full rotation of the largest orbit
                 t0 = sol.t[-1]
-                t_final = self._get_max_period(y0) * 1.1 + sol.t[-1]
+                t_final = max(t_final, self._get_max_period(y0) * 1.1 + sol.t[-1])
 
     def get_total_duration(self) -> float:
         """
