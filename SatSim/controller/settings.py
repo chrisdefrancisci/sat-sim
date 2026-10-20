@@ -67,10 +67,15 @@ class HohmannSettings(ttk.Frame):
     def refresh(self, *_):
         """
         Callback to handle any changes in the Hohmann settings model.
-        :param _: Description
         """
-        self.delta_v_total.set(str(self.model.delta_v_total))
-        self.delta_t_total.set(str(self.model.delta_t))
+        try:
+            self.delta_v_total.set(str(self.model.delta_v_total))
+            self.delta_t_total.set(str(self.model.delta_t))
+        except (tk.TclError, ZeroDivisionError):
+            self.delta_v_total.set("---")
+            self.delta_t_total.set("---")
+        if self.model.r_selection.get().lower() == "target":
+            self.model.r_custom.set(self.model.target_orbit.to_config().radius)
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -133,6 +138,8 @@ class BiellipticSettings(ttk.Frame):
         except (tk.TclError, ZeroDivisionError):
             self.delta_v_total.set("---")
             self.delta_t_total.set("---")
+        if self.model.ratio_final_selection.get().lower() == "target":
+            self.model.ratio_final_custom.set(1.0)
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -165,7 +172,8 @@ class ManeuverSettings(ttk.Frame):
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.current_page = None
+        self.current_page: HohmannSettings | BiellipticSettings = None
+
         model = self.settings.orbit_maneuvers[self.maneuver_idx]
         if isinstance(model, HohmannModel):
             self.current_page = HohmannSettings(self.content, model)
@@ -175,8 +183,12 @@ class ManeuverSettings(ttk.Frame):
             self.current_page = BiellipticSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Bielliptic Transfer")
+        else:
+            raise ValueError("Unknown Maneuver Model")
 
         self.traces = []
+
+        self.bind("<Destroy>", self._on_destroy)
 
     @staticmethod
     def create_new(parent, settings: SettingsModel, type: str) -> 'ManeuverSettings':
@@ -188,10 +200,20 @@ class ManeuverSettings(ttk.Frame):
         :param type: Description
         :return: ManeuverSettings page
         """
-        idx = len(settings.orbit_maneuvers)
-        settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, settings.chaser_orbit))
-        new_page = ManeuverSettings(parent, settings, idx)
-        return new_page
+        if len(settings.orbit_maneuvers) == 0:
+            chaser = settings.chaser_orbit
+        else:
+            chaser = settings.orbit_maneuvers[-1].result_model
+        settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, chaser))
+        return ManeuverSettings(parent, settings, len(settings.orbit_maneuvers) - 1 )
+
+    def clear_traces(self) -> None:
+        for var, trace_id in self.traces:
+            try:
+                var.trace_remove("write", trace_id)
+            except tk.TclError:
+                pass  # already gone
+        self.traces.clear()
 
     def refresh(self, *args):
         if self.current_page is not None:
@@ -201,8 +223,7 @@ class ManeuverSettings(ttk.Frame):
         # <Destroy> event also fires for child widgets; only react to this frame.
         if event.widget is not self:
             return
-        for var, trace_id in self.traces:
-            var.trace_remove("write", trace_id)
+        self.clear_traces()
 
 class ManeuverDialog(ttk.Toplevel):
     def __init__(self, parent, options=None):
@@ -278,7 +299,8 @@ class SettingsDialog(ttk.Toplevel):
             side="left", padx=(5, 0)
         )
         self.remove = ttk.Button(buttons, icon="dash-circle", text="Delete Maneuver", bootstyle="info",
-                                 command=self._delete_maneuver).pack(
+                                 command=self._delete_maneuver)
+        self.remove.pack(
             side="left", padx=(5, 0)
         )
         self.remove.state(["disabled"])
@@ -305,9 +327,46 @@ class SettingsDialog(ttk.Toplevel):
         self.focus_set()
         self.bind("<Escape>", lambda e: self.destroy())
 
+    def _link_maneuver(self, idx: int) -> None:
+        """
+        Wire maneuver page `idx` to the things it depends on.
+
+        idx == 0: chaser is settings.chaser_orbit itself, so the page only needs refreshing.
+        idx > 0:  chaser is a private OrbitModel derived from the previous maneuver's result; keep it in sync.
+                Chaining handles the rest: updating maneuver k's chaser fires maneuver k+1's sync.
+        """
+        page = self.maneuver_settings[idx]
+        model = self.settings.orbit_maneuvers[idx]
+        if model is None:
+            return
+        
+        if idx == 0:
+            page.traces.extend(model.target_orbit.register_cb(page.refresh))
+            page.traces.extend(model.chaser_orbit.register_cb(page.refresh))
+            return
+
+        prev = self.settings.orbit_maneuvers[idx - 1]
+        if prev is None:
+            return
+
+        def sync(*_):
+            try:
+                model.chaser_orbit.copy_from(prev.result_model)
+            except (tk.TclError, ZeroDivisionError, ValueError):
+                return  # previous page is mid-edit or invalid; keep the last good values
+            page.refresh()
+
+        # Everything prev.result_model depends on:
+        page.traces.extend(prev.register_cb(sync))               # its own selections / custom values
+        page.traces.extend(prev.chaser_orbit.register_cb(sync))  # previous link in the chain
+        page.traces.extend(prev.target_orbit.register_cb(sync))  # r_final when set to "target"
+        sync()
+
+
     def _load_maneuvers(self):
-        for idx in range(0, len(self.settings.orbit_maneuvers)):
+        for idx in range(len(self.settings.orbit_maneuvers)):
             self.maneuver_settings.append(ManeuverSettings(self.notebook, self.settings, idx))
+            self._link_maneuver(idx)
             self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
         if len(self.settings.orbit_maneuvers) > 0:
             self.remove.state(["!disabled"])
@@ -315,29 +374,43 @@ class SettingsDialog(ttk.Toplevel):
     def _add_maneuver(self):
         dialog = ManeuverDialog(self)
         type = dialog.selected_value
-        if type is not None:
-            new_maneuver = ManeuverSettings.create_new(self.notebook, self.settings, type)
-            self.maneuver_settings.append(new_maneuver)
-            self.notebook.add(self.maneuver_settings[-1], text=f"Maneuver {len(self.maneuver_settings)} Settings")
-            # Register callbacks to either the orbits or previous maneuvers. 
-            # Should I register all maneuver pages to the orbit settings? 
-            # May cause excessive callbacks if orbit changes -> callback maneuver 1 and manuever 2; manuever 1 has changed -> callback maneuver 2
-            if len(self.maneuver_settings) == 1: 
-                new_maneuver.traces.append(self.settings.target_orbit.register_cb(new_maneuver.refresh))
-                new_maneuver.traces.append(self.settings.chaser_orbit.register_cb(new_maneuver.refresh))
-            else:
-                new_maneuver.traces.append(self.maneuver_settings[-1].current_page.model.register_cb(new_maneuver.refresh))
-            
-            self.remove.state(["!disabled"])
-            self.notebook.select(self.notebook.index("end") - 1)
-            self.status_text.config(text="Maneuver Added", bootstyle="info")
+        if type is None:
+            return
+
+        new_maneuver = ManeuverSettings.create_new(self.notebook, self.settings, type)
+        self.maneuver_settings.append(new_maneuver)
+        self._link_maneuver(len(self.maneuver_settings) - 1)
+
+        self.notebook.add(new_maneuver, text=f"Maneuver {len(self.maneuver_settings)} Settings")
+        self.remove.state(["!disabled"])
+        self.notebook.select(self.notebook.index("end") - 1)
+        self.status_text.config(text="Maneuver Added", bootstyle="info")
 
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
-        if active_index > 0:
-            self.maneuver_settings.pop(active_index - 1) # Assumes one other tab
-            self.settings.orbit_maneuvers.pop(active_index - 1)
-            self.notebook.forget(active_index)
+
+        if active_index == 0: 
+            return
+        maneuver_idx = active_index - 1 # assumes tab 0 is the satellite page
+        page = self.maneuver_settings.pop(maneuver_idx) 
+        self.settings.orbit_maneuvers.pop(maneuver_idx)
+        self.notebook.forget(active_index)
+        page.destroy()
+
+        # The successor has shifted into slot idx, but its traces still point at the deleted model.
+        if maneuver_idx < len(self.maneuver_settings):
+            successor = self.maneuver_settings[maneuver_idx]
+            successor.clear_traces()
+            if maneuver_idx == 0:
+                # It's now first in the chain, so its chaser is the satellite page's chaser again.
+                self.settings.orbit_maneuvers[0].chaser_orbit = self.settings.chaser_orbit
+            self._link_maneuver(maneuver_idx)  # rewires to the new predecessor and re-syncs its chaser
+            successor.refresh()
+
+        # Tab titles are numbered, so renumber them.
+        for n, p in enumerate(self.maneuver_settings, start=1):
+            self.notebook.tab(p, text=f"Maneuver {n} Settings")
+
         if self.notebook.index("end") <= 1:
             self.remove.state(["disabled"])
         self.status_text.config(text="Maneuver Removed", bootstyle="warning")
@@ -347,7 +420,6 @@ class SettingsDialog(ttk.Toplevel):
             self.remove.state(["disabled"])
         else:
             self.remove.state(["!disabled"])
-
 
     def _build_ui(self):
         self.notebook.add(self.satellite_settings, text="Satellite Settings")

@@ -39,6 +39,48 @@ class OrbitModel:
         result.long_periapsis = ttk.DoubleVar(value=self.long_periapsis.get())
         return result
 
+    @staticmethod
+    def from_config(config: OrbitConfig) -> 'OrbitModel':
+        if config.eccentricity == 0.0 and config.inclination == 0.0:
+            return OrbitModel(
+                altitude_km=config.semimajor - earth.radius,
+                true_longitude=config.true_anomaly,
+                inclination_deg=0.0
+            )
+        elif config.eccentricity == 0.0:
+            return OrbitModel(
+                altitude_km=config.semimajor - earth.radius,
+                inclination_deg=config.inclination,
+                node=config.node,
+                arg_latitude=config.true_anomaly
+            )
+        elif config.inclination == 0.0:
+            return OrbitModel(
+                altitude_km = config.semimajor * (1 - config.eccentricity) - earth.radius,
+                eccentricity=config.eccentricity,
+                inclination_deg=0.0,
+                long_periapsis=config.arg_perigee,
+                true_anomaly=config.true_anomaly
+            )
+        else:
+            return OrbitModel(
+                altitude_km = config.semimajor * (1 - config.eccentricity) - earth.radius,
+                eccentricity=config.eccentricity,
+                inclination_deg = config.inclination,
+                node = config.node,
+                arg_perigee=config.arg_perigee,
+                true_anomaly=config.true_anomaly
+            )
+
+    def copy_from(self, other: 'OrbitModel') -> None:
+        """Copy values from `other` in place, writing only variables that changed so downstream traces stay quiet."""
+        FIELDS = ("altitude_km", "inclination_deg", "eccentricity", "node", "arg_perigee",
+               "true_anomaly", "true_longitude", "arg_latitude", "long_periapsis")
+        for name in FIELDS:
+            new = getattr(other, name).get()
+            var = getattr(self, name)
+            if var.get() != new:
+                var.set(new)
 
     def register_cb(self, cb) -> list[tuple]:
         """
@@ -82,7 +124,6 @@ class OrbitModel:
                 arg_perigee=self.arg_perigee.get(),
                 true_anomaly=self.true_anomaly.get()
             )
-
 
 class HohmannModel:
     r"""
@@ -194,9 +235,9 @@ class HohmannModel:
     @property
     def delta_phase(self) -> float:
         """Phase change (deg)"""
-        a_chaser= self.chaser_orbit.to_config().radius
+        a_chaser = self.chaser_orbit.to_config().radius
         ang_vel_chaser = np.sqrt(earth.mu / a_chaser ** 3)
-        return ang_vel_chaser * self.delta_t + 180
+        return np.rad2deg(ang_vel_chaser) * self.t_start + 180
 
     @property
     def min_wait_time(self) -> float:
@@ -237,8 +278,12 @@ class HohmannModel:
             inclination=self.chaser_orbit.inclination_deg.get(),
             node=self.chaser_orbit.node.get(),
             arg_perigee=self.chaser_orbit.arg_perigee.get(),
-            true_anomaly=self.chaser_orbit.true_longitude.get() + self.delta_phase
+            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
         )
+
+    @property
+    def result_model(self) -> OrbitModel:
+        return OrbitModel.from_config(self.result_orbit)
 
     def _on_destroy(self, event) -> None:
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -450,16 +495,34 @@ class BiellipticModel:
         v_trans2c = np.sqrt(2 * earth.mu / r3 - earth.mu / a_trans2)
         v_final = np.sqrt(earth.mu / r3)
         return v_final - v_trans2c
+    
+    @property
+    def delta_phase(self) -> float:
+        """Phase change (deg)"""
+        a_chaser = self.chaser_orbit.to_config().radius
+        ang_vel_chaser = np.sqrt(earth.mu / a_chaser ** 3)
+        return np.rad2deg(ang_vel_chaser) * self.t_start + 360
 
     @property
     def delta_v_total(self) -> float:
         return abs(self.delta_v_1) + abs(self.delta_v_2) + abs(self.delta_v_3)
     
     @property
-    def result_orbit(self) -> OrbitModel:
-        # TODO: calculate orbit that results from this maneuver
-        return self.chaser_orbit
+    def result_orbit(self) -> OrbitConfig:
+        """Resulting orbit parameters from this maneuver"""        
+        return OrbitConfig(
+            semimajor=self.r_final,
+            eccentricity=0.0,
+            inclination=self.chaser_orbit.inclination_deg.get(),
+            node=self.chaser_orbit.node.get(),
+            arg_perigee=self.chaser_orbit.arg_perigee.get(),
+            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
+        )
 
+    @property
+    def result_model(self) -> OrbitModel:
+        return OrbitModel.from_config(self.result_orbit)
+    
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
         if event.widget is not self:
