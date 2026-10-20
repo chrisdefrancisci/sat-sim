@@ -220,7 +220,7 @@ class ManeuverSettings(ttk.Frame):
             self.current_page.refresh()
 
     def _on_destroy(self, event) -> None:
-        # <Destroy> event also fires for child widgets; only react to this frame.
+        # <Destroy> event also fires for child widgets, only react to this frame.
         if event.widget is not self:
             return
         self.clear_traces()
