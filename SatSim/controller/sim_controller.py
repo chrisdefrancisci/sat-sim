@@ -79,7 +79,7 @@ class SimController(ttk.Frame):
             self.view.view3d.add_orbit(full_t, full_pos, color=palette[idx % len(palette)], label=labels[idx])
 
         for impulse in self.model.impulse_results:
-            self.view.view3d.add_impulse(*impulse.pos, edgecolors=palette[1])
+            self.view.view3d.add_impulse(impulse.time, impulse.pos, edgecolors=palette[1])
 
         # Update view - error
         _, pos_lvlh = self.model.get_pos_lvlh()

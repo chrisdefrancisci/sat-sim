@@ -16,7 +16,6 @@ class OrbitView:
         self.ax = ax
         self.times = times
         self.pos = pos
-
         self.args = args
         self.kwargs = kwargs
 
@@ -24,8 +23,8 @@ class OrbitView:
 
         self.full_path:list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
                                       color=colors.border, linewidth=0.7, alpha=0.8, label="Full simulated path")
-        self.timed_path:list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :],
-                                       linewidth=3.0, *args, **kwargs)
+        self.timed_path:list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :], self.pos[2, :], *args,
+                                       linewidth=3.0, **kwargs)
         self.marker:PathCollection|None = self.ax.scatter(*pos[:,-1], *args, **kwargs)
 
     def clear(self):
@@ -62,6 +61,31 @@ class OrbitView:
         self.marker = self.ax.scatter(*self.pos[:, indices][:, -1], *self.args, **self.kwargs)
         self.ax.redraw_in_frame()
 
+class ImpulseView:
+    
+    def __init__(self, ax: Axes, time: np.ndarray|float, pos: np.ndarray, *args, **kwargs):
+        self.ax = ax
+        self.time = time
+        self.pos = pos
+        self.args = args
+        self.kwargs = kwargs
+        colors = ttk.Style().colors
+        self.full_impulse: PathCollection = self.ax.scatter(*pos, marker='^', facecolors='none', edgecolors=colors.border, linewidth=0.7, alpha=0.8, label="All Impulse")
+        self.time_impulse: PathCollection|None = None
+
+    def clear(self):
+        self.full_impulse.remove()
+        if self.time_impulse is not None:
+            self.time_impulse.remove()
+            self.time_impulse = None
+    
+    def update(self, t_min, t_max):
+        if t_min < self.time < t_max:
+            if self.time_impulse is None:
+                self.time_impulse = self.ax.scatter(*self.pos, *self.args, **self.kwargs, marker='^', facecolors='none', label="Impulse")
+        elif self.time_impulse is not None:
+            self.time_impulse.remove()
+            self.time_impulse = None
 
 class View3D(ttk.Frame):
     """
@@ -87,8 +111,8 @@ class View3D(ttk.Frame):
         self.t_min = None
         self.t_max = None
 
-        self.orbits = []
-        self.impulses: list[PathCollection] = []
+        self.orbits: list[OrbitView] = []
+        self.impulses: list[ImpulseView] = []
 
     def _draw_earth(self):
         """
@@ -129,6 +153,8 @@ class View3D(ttk.Frame):
         self.t_max = t_max
         for orbit in self.orbits:
             orbit.update(t_min, t_max)
+        for impulse in self.impulses:
+            impulse.update(t_min, t_max)
         self._refresh()
 
     def add_orbit(self, *args, **kwargs):
@@ -139,15 +165,16 @@ class View3D(ttk.Frame):
         self.update_times(self.t_min, self.t_max)
         self._refresh()
 
-    def add_impulse(self, xs, ys, zs, *args, **kwargs):
-        self.impulses.append(
-            self.plot.ax.scatter(xs, ys, zs, *args, **kwargs, marker='^', facecolors='none', label="Impulse"))
+    def add_impulse(self, *args, **kwargs):
+        self.impulses.append(ImpulseView(self.ax, *args, **kwargs))
+        self.update_times(self.t_min, self.t_max)
+        self._refresh()
 
     def clear(self):
         for orbit in self.orbits:
             orbit.clear()
         for impulse in self.impulses:
-            impulse.remove()
+            impulse.clear()
         self.impulses = []
 
         self.orbits = []
