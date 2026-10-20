@@ -102,7 +102,7 @@ class BiellipticSettings(ttk.Frame):
         self.radiusFinalEntry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         ttk.Label(self, text="Maneuver Time (s):").grid(row=2, column=0, padx=(5, 0), sticky="e")
-        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0, "rendezvous": 0.0},
+        self.timeEntry = DefaultManualEntry(self, {"immediate": 0.0},
                                             selection_var=model.t_selection, entry_var=model.t_custom)
         self.timeEntry.grid(row=2, column=1, sticky="ew", pady=(0, 5))
 

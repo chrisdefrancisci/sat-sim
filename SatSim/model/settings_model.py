@@ -140,8 +140,8 @@ class HohmannModel:
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
-        # Traces from registered callbacks
-        self.traces = []
+        self.t_offset = 0.0 # Used to calculate where target is in its orbit
+        self.traces = [] # Traces from registered callbacks
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -163,6 +163,7 @@ class HohmannModel:
         result.t_selection = ttk.StringVar(value=self.t_selection.get())
         result.t_custom = ttk.DoubleVar(value=self.t_custom.get())
 
+        result.t_offset = self.t_offset
         result.traces = []
         return result
 
@@ -254,7 +255,7 @@ class HohmannModel:
         lead_angle = ang_vel_tgt * self.delta_t
 
         # Pre-burn phase angle
-        phase_angle_init = np.deg2rad(
+        phase_angle_init = self.t_offset * ang_vel_tgt + np.deg2rad(
             self.target_orbit.to_config().true_anomaly - self.chaser_orbit.to_config().true_anomaly)
         # Desired phase angle for rendezvous
         phase_angle_begin = np.pi - lead_angle
@@ -308,6 +309,7 @@ class HohmannModel:
         return [(v, v.trace_add("write", cb)) for v in watched]
 
     def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
+        self.t_offset = t_offset
         return [
             ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
             ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
@@ -338,7 +340,8 @@ class BiellipticModel:
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
-        self.traces = [] # Traces from callbacks that 
+        self.t_offset = 0.0 # Used to calculate where target is in its orbit
+        self.traces = [] # Traces from registered callbacks
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -362,6 +365,8 @@ class BiellipticModel:
         result.t_selection = ttk.StringVar(value=self.t_selection.get())
         result.t_custom = ttk.DoubleVar(value=self.t_custom.get())
 
+        result.t_offset = self.t_offset
+        result.traces = []
         return result
 
     @property
@@ -413,7 +418,7 @@ class BiellipticModel:
             return 0
         elif self.t_selection.get().lower() == "rendezvous":
             # TODO: implement Vallado Algorithm 45: Circular Coplanar Phasing (Different Orbits) pg 367
-            raise ValueError(f"{self.t_selection.get()} Not yet implemented")
+            raise ValueError(f"{self.t_selection.get()} Not yet implemented for Bielliptic Model")
         else:
             raise ValueError(f"Unknown option for time: {self.t_selection.get()}")
 
