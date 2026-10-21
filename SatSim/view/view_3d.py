@@ -80,7 +80,7 @@ class ImpulseView:
             self.time_impulse = None
     
     def update(self, t_min, t_max):
-        if t_min < self.time < t_max:
+        if t_min <= self.time <= t_max:
             if self.time_impulse is None:
                 self.time_impulse = self.ax.scatter(*self.pos, *self.args, **self.kwargs, marker='^', facecolors='none', label="Impulse")
         elif self.time_impulse is not None:
