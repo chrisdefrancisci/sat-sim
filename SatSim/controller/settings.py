@@ -4,7 +4,7 @@ from typing import Any
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from SatSim.model.settings_model import SettingsModel, HohmannModel, BiellipticModel, OrbitModel
+from SatSim.model.settings_model import SettingsModel, HohmannModel, BiellipticModel, PhasingModel, OrbitModel
 from SatSim.controller.orbit_entry import OrbitEntry
 from SatSim.controller.defaults_manual_entry import DefaultManualEntry
 
@@ -149,14 +149,46 @@ class BiellipticSettings(ttk.Frame):
             var.trace_remove("write", trace_id)
 
 
+class PhasingSettings(ttk.Frame):
+    def __init__(self, parent, model: PhasingModel, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.model = model
+
+            # Register the callback and set the "view" - populate the calculated values
+        self._traces = model.register_cb(self.refresh)
+        self.refresh()
+        # Remove traces when this page is destroyed.
+        self.bind("<Destroy>", self._on_destroy)
+
+    def refresh(self, *_):
+        """
+        Callback to handle any changes in the Hohmann settings model.
+        :param _: Description
+        """
+        pass
+        # try:
+        #     self.delta_t_total.set(str(self.model.delta_t))
+        # except (tk.TclError, ZeroDivisionError):
+        #     self.delta_t_total.set("---")
+
+    def _on_destroy(self, event):
+        # <Destroy> event also fires for child widgets; only react to this frame.
+        if event.widget is not self:
+            return
+        for var, trace_id in self._traces:
+            var.trace_remove("write", trace_id)
+
+
 class ManeuverSettings(ttk.Frame):
     PAGES = {
         "Hohmann": HohmannSettings,
-        "Bielliptic": BiellipticSettings
+        "Bielliptic": BiellipticSettings,
+        "Phasing": PhasingSettings
     }
     MODELS = {
         "Hohmann": HohmannModel,
-        "Bielliptic": BiellipticModel
+        "Bielliptic": BiellipticModel,
+        "Phasing": PhasingModel
     }
 
     def __init__(self, parent, settings: SettingsModel, maneuver_idx: int):
@@ -172,7 +204,7 @@ class ManeuverSettings(ttk.Frame):
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.current_page: HohmannSettings | BiellipticSettings = None
+        self.current_page: HohmannSettings | BiellipticSettings | PhasingSettings = None
 
         model = self.settings.orbit_maneuvers[self.maneuver_idx]
         if isinstance(model, HohmannModel):
@@ -183,6 +215,10 @@ class ManeuverSettings(ttk.Frame):
             self.current_page = BiellipticSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Bielliptic Transfer")
+        elif isinstance(model, PhasingModel):
+            self.current_page = PhasingSettings(self.content, model)
+            self.current_page.pack(fill="both", expand=True)
+            self.page_label.config(text="Phasing Orbit Transfer")
         else:
             raise ValueError("Unknown Maneuver Model")
 

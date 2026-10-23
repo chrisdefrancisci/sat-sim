@@ -1,5 +1,6 @@
 import copy
 import ttkbootstrap as ttk
+from math import isclose
 import numpy as np
 
 from SatSim.common import earth
@@ -557,6 +558,177 @@ class BiellipticModel:
             ImpulseConfig(time=t_offset + self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
         ]
 
+
+class PhasingModel:
+    r"""
+    Hold the settings data for a Phasing Orbit Transfer.
+
+    :see also: Vallado, Algorithm 44, pg 366
+    """
+
+    def __init__(self, target_orbit: OrbitModel, chaser_orbit: OrbitModel, **kwargs):
+        self.target_orbit = target_orbit
+        self.chaser_orbit = chaser_orbit
+        # self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
+        # self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_orbit.to_config().radius))
+        self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
+        self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
+
+        self.t_offset = 0.0 # Used to calculate where target is in its orbit
+        self.traces = [] # Traces from registered callbacks
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        # If copied from the SettingsModel, we want to have new references to the existing target and chaser models
+        if id(self.target_orbit) in memo:
+            result.target_orbit = memo[id(self.target_orbit)]
+        else:
+            result.target_orbit = copy.deepcopy(self.target_orbit)
+        if id(self.chaser_orbit) in memo:
+            result.chaser_orbit = memo[id(self.chaser_orbit)]
+        else:
+            result.chaser_orbit = copy.deepcopy(self.chaser_orbit)
+
+        # result.r_selection = ttk.StringVar(value=self.r_selection.get())
+        # result.r_custom = ttk.DoubleVar(value=self.r_custom.get())
+        result.t_selection = ttk.StringVar(value=self.t_selection.get())
+        result.t_custom = ttk.DoubleVar(value=self.t_custom.get())
+
+        result.t_offset = self.t_offset
+        result.traces = []
+        return result
+
+    def _assert_same_orbit(self) -> None:
+        ECCENTRICITY_TOL = 0.01
+        ARG_PERIGEE_TOL = 0.01 # Deg
+        INCLINATION_TOL = 0.01 # Deg
+        NODE_TOL = 0.01 # Deg
+        SEMIMAJOR_TOL = 1 # km
+        target = self.target_orbit.to_config()
+        chaser = self.chaser_orbit.to_config()
+        if not isclose(target.eccentricity, chaser.eccentricity, rel_tol=ECCENTRICITY_TOL):
+            raise ValueError(f"Target and chaser eccentricity must agree, differ by {abs(target.eccentricity - chaser.eccentricity)}.")
+        if not isclose(target.arg_perigee, chaser.arg_perigee, rel_tol=ARG_PERIGEE_TOL):
+            raise ValueError(f"Target and chaser argument of perigee must agree, differ by {abs(target.arg_perigee - chaser.arg_perigee)} degrees.")
+        if not isclose(target.inclination, chaser.inclination, rel_tol=INCLINATION_TOL):
+            raise ValueError(f"Target and chaser inclination must agree, differ by {abs(target.inclination - chaser.inclination)} degrees.")
+        if not isclose(target.node, chaser.node, rel_tol=NODE_TOL):
+            raise ValueError(f"Target and chaser right ascension of ascending node must agree, differ by {abs(target.node - chaser.node)} degrees.")
+        if not isclose(target.semimajor, chaser.semimajor, rel_tol=SEMIMAJOR_TOL):
+            raise ValueError(f"Target and chaser argument of perigee must agree, differ by {abs(target.semimajor - chaser.semimajor)} degrees.")
+
+    @property
+    def t_start(self) -> float:
+        if self.t_selection.get().lower() == "custom":
+            return self.t_custom.get()
+        elif self.t_selection.get().lower() == "immediate":
+            return 0
+        else:
+            raise ValueError(f"Unknown option for time: {self.t_selection.get()}")
+
+    @t_start.setter
+    def t_start(self, t) -> None:
+        if t == 0:
+            self.t_selection.set("immediate".capitalize())
+        else:
+            self.t_selection.set("custom".capitalize())
+            self.t_custom.set(t)
+
+    @property
+    def delta_t(self) -> float:
+        r"""
+        Computes the required time of the phasing orbit.
+
+
+        """
+        self._assert_same_orbit()
+        chaser = self.chaser_orbit.to_config()
+        target = self.target_orbit.to_config()
+        ecc = chaser.eccentricity
+        delta_true_anomaly = np.deg2rad(chaser.true_anomaly - target.true_anomaly)
+        ang_vel = np.sqrt(earth.mu / chaser.semimajor ** 3)
+
+        return (np.pi * 2 + delta_true_anomaly) / ang_vel
+
+    @property
+    def delta_v_1(self) -> float:
+        r"""
+        Gets the magnitude of the first impulsive burn. 
+        The sign indicates if the burn is in the direction of velocity (positive) or opposite the direction of 
+        velocity (negative).
+        
+        :param self: Description
+        :return: Description
+        :rtype: float
+        """
+        semimajor_phasing = (np.sqrt(earth.mu) * self.delta_t / (2 * np.pi)) ** (2 / 3)
+
+        # assuming circular for now
+        radius = self.target_orbit.to_config().radius
+        vel_phasing = np.sqrt(2*earth.mu*(1/radius - 1/(2 * semimajor_phasing)))
+        vel_init = np.sqrt(earth.mu / radius)
+        return vel_phasing - vel_init
+
+    @property
+    def delta_v_2(self) -> float:
+        return -self.delta_v_1
+
+    @property
+    def delta_v_total(self) -> float:
+        return abs(self.delta_v_1) + abs(self.delta_v_2)
+
+    @property
+    def delta_phase(self) -> float:
+        """Phase change (deg)"""
+        self._assert_same_orbit()
+        chaser = self.chaser_orbit.to_config()
+        target = self.target_orbit.to_config()
+        return chaser.true_anomaly - target.true_anomaly
+
+    @property
+    def result_orbit(self) -> OrbitConfig:
+        """Resulting orbit parameters from this maneuver"""        
+        return OrbitConfig(
+            semimajor=self.chaser_orbit.to_config().semimajor,
+            eccentricity=0.0,
+            inclination=self.chaser_orbit.inclination_deg.get(),
+            node=self.chaser_orbit.node.get(),
+            arg_perigee=self.chaser_orbit.arg_perigee.get(),
+            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
+        )
+
+    @property
+    def result_model(self) -> OrbitModel:
+        return OrbitModel.from_config(self.result_orbit)
+
+    def _on_destroy(self, event) -> None:
+        # <Destroy> event also fires for child widgets; only react to this frame.
+        if event.widget is not self:
+            return
+        for var, trace_id in self.traces:
+            var.trace_remove("write", trace_id)
+
+    def register_cb(self, cb) -> list[tuple]:
+        """
+        Register callback on variables that affect the generation of the dependent parameters.
+        
+        :param cb: Callback
+        :returns: (variable, trace_id) pairs. The caller can remove them on destruction.
+        """
+        watched = [
+            self.t_selection, self.t_custom
+        ]
+        return [(v, v.trace_add("write", cb)) for v in watched]
+
+    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
+        self.t_offset = t_offset
+        return [
+            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
+        ]
 
 class SettingsModel:
     """
