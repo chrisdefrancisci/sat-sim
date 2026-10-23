@@ -154,7 +154,24 @@ class PhasingSettings(ttk.Frame):
         super().__init__(parent, *args, **kwargs)
         self.model = model
 
-            # Register the callback and set the "view" - populate the calculated values
+        ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5, 0), sticky="e")
+        self.radiusIntEntry = ttk.Entry(self, textvariable=model.orbit_count)
+        self.radiusIntEntry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
+
+        result_row = ttk.Frame(self)
+        result_row.grid(row=2, column=1, columnspan=2, sticky="ew")
+        ttk.Label(result_row, text="Delta-v = ").pack(side="left", padx=(5, 0), pady=5)
+        self.delta_v_total = ttk.StringVar(value="Unknown")
+        ttk.Label(result_row, textvariable=self.delta_v_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
+        ttk.Label(result_row, text="(km/s)").pack(side="left", padx=5, pady=5)
+        ttk.Label(result_row, text="Delta-t = ").pack(side="left", padx=(5, 0), pady=5)
+        self.delta_t_total = ttk.StringVar(value="Unknown")
+        ttk.Label(result_row, textvariable=self.delta_t_total, bootstyle="secondary").pack(side="left", padx=(5, 0),
+                                                                                           pady=5)
+        ttk.Label(result_row, text="(s)").pack(side="left", padx=5, pady=5)
+
+        # Register the callback and set the "view" - populate the calculated values
         self._traces = model.register_cb(self.refresh)
         self.refresh()
         # Remove traces when this page is destroyed.
@@ -162,14 +179,15 @@ class PhasingSettings(ttk.Frame):
 
     def refresh(self, *_):
         """
-        Callback to handle any changes in the Hohmann settings model.
+        Callback to handle any changes in the Phasing settings model.
         :param _: Description
         """
-        pass
-        # try:
-        #     self.delta_t_total.set(str(self.model.delta_t))
-        # except (tk.TclError, ZeroDivisionError):
-        #     self.delta_t_total.set("---")
+        try:
+            self.delta_v_total.set(str(self.model.delta_v_total))
+            self.delta_t_total.set(str(self.model.delta_t))
+        except (tk.TclError, ZeroDivisionError):
+            self.delta_v_total.set("---")
+            self.delta_t_total.set("---")
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.

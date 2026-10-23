@@ -569,6 +569,7 @@ class PhasingModel:
     def __init__(self, target_orbit: OrbitModel, chaser_orbit: OrbitModel, **kwargs):
         self.target_orbit = target_orbit
         self.chaser_orbit = chaser_orbit
+        self.orbit_count = ttk.IntVar(value=kwargs.pop("Count", 1))
         # self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
         # self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_orbit.to_config().radius))
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
@@ -594,6 +595,7 @@ class PhasingModel:
 
         # result.r_selection = ttk.StringVar(value=self.r_selection.get())
         # result.r_custom = ttk.DoubleVar(value=self.r_custom.get())
+        result.orbit_count = ttk.IntVar(value=self.orbit_count.get())
         result.t_selection = ttk.StringVar(value=self.t_selection.get())
         result.t_custom = ttk.DoubleVar(value=self.t_custom.get())
 
@@ -651,7 +653,7 @@ class PhasingModel:
         delta_true_anomaly = np.deg2rad(chaser.true_anomaly - target.true_anomaly)
         ang_vel = np.sqrt(earth.mu / chaser.semimajor ** 3)
 
-        return (np.pi * 2 + delta_true_anomaly) / ang_vel
+        return (np.pi * 2 * self.orbit_count.get() + delta_true_anomaly) / ang_vel
 
     @property
     def delta_v_1(self) -> float:
@@ -664,7 +666,7 @@ class PhasingModel:
         :return: Description
         :rtype: float
         """
-        semimajor_phasing = (np.sqrt(earth.mu) * self.delta_t / (2 * np.pi)) ** (2 / 3)
+        semimajor_phasing = (np.sqrt(earth.mu) * self.delta_t / (2 * np.pi * self.orbit_count.get())) ** (2 / 3)
 
         # assuming circular for now
         radius = self.target_orbit.to_config().radius
@@ -719,7 +721,7 @@ class PhasingModel:
         :returns: (variable, trace_id) pairs. The caller can remove them on destruction.
         """
         watched = [
-            self.t_selection, self.t_custom
+            self.t_selection, self.t_custom, self.orbit_count
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
