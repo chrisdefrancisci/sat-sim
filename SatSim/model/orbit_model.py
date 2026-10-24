@@ -154,7 +154,7 @@ class OrbitModel:
         node_norm = np.linalg.norm(node_vec)
         # cos(Omega) = n_I / |n|
         raan = np.rad2deg(np.arccos(node_vec[0] / np.linalg.norm(node_vec)))
-        raan = 360 - raan if node_vec[1] < 0 else raan
+        raan = 360 - raan if (node_vec[1] < 0 and raan != 0) else raan
 
         mech_energy = vel ** 2 / 2 - earth.mu / pos
         semimajor = -earth.mu / (2 * mech_energy)
@@ -274,6 +274,8 @@ class OrbitModel:
                 _c2 = 1 / 2
                 _c3 = 1 / 6
             return _c2, _c3
+
+        dt = dt % self.period
 
         pos_0 = self.to_position()
         vel_0 = self.to_velocity()

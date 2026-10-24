@@ -286,7 +286,7 @@ class HohmannSettingsModel:
 
     @property
     def target_orbit(self) -> OrbitModel:
-        return self.target_init_orbit.to_orbit().propagate(self.delta_t)
+        return self.target_init_orbit.to_orbit().propagate(self.delta_t + self.t_start)
 
     @property
     def chaser_model(self) -> OrbitSettingsModel:
@@ -533,7 +533,7 @@ class BiellipticSettingsModel:
 
     @property
     def target_orbit(self) -> OrbitModel:
-        return self.target_init_orbit.to_orbit().propagate(self.delta_t)
+        return self.target_init_orbit.to_orbit().propagate(self.delta_t + self.t_start)
 
     @property
     def chaser_model(self) -> OrbitSettingsModel:
@@ -717,7 +717,7 @@ class PhasingSettingsModel:
 
     @property
     def target_orbit(self) -> OrbitModel:
-        return self.target_init_orbit.to_orbit().propagate(self.delta_t)
+        return self.target_init_orbit.to_orbit().propagate(self.delta_t + self.t_start)
 
     @property
     def chaser_model(self) -> OrbitSettingsModel:
