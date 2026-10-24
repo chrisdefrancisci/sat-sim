@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import math
 
 from SatSim.common import earth
 from SatSim.common.conversions import rotation_matrix
@@ -244,6 +245,96 @@ class OrbitModel:
         vel_earth_centered = rotation_matrix(2, -raan) @ rotation_matrix(0, -i) @ rotation_matrix(2,
                                                                                                   -omega) @ vel_perifocal
         return vel_earth_centered
+
+    def propagate(self, dt) -> 'OrbitModel':
+        r"""
+        Solve's Kepler's problem: given initial parameters and change in time, find orbital parameters at the end of the time interval.
+
+        Uses the universal variable, :math:`\chi`, formulation.
+
+        :see also: Vallado, Algorithm 8, Pg. 94
+        :param dt: Time in seconds.
+        :return: New orbit model
+        """
+
+        def find_c(psi: float) -> tuple[float, float]:
+            """
+            :see also: Vallado, Algorithm 1, Pg. 63
+            :param psi:
+            :return:
+            """
+            PSI_CUTOFF = 1e-6
+            if psi > PSI_CUTOFF:
+                _c2 = (1 - math.cos(math.sqrt(psi))) / psi
+                _c3 = (math.sqrt(psi) - math.sin(math.sqrt(psi))) / math.sqrt(psi ** 3)
+            elif psi < -PSI_CUTOFF:
+                _c2 = (1 - math.cosh(math.sqrt(-psi))) / psi
+                _c3 = (math.sinh(math.sqrt(-psi)) - math.sqrt(-psi)) / math.sqrt(-psi ** 3)
+            else:
+                _c2 = 1 / 2
+                _c3 = 1 / 6
+            return _c2, _c3
+
+        pos_0 = self.to_position()
+        vel_0 = self.to_velocity()
+        pos_0_norm = np.linalg.norm(pos_0)
+        vel_0_norm = np.linalg.norm(vel_0)
+
+        alpha = -vel_0_norm ** 2 / earth.mu + 2 / pos_0_norm
+
+        ALPHA_CUTOFF = 0.000001
+
+        if alpha > ALPHA_CUTOFF:
+            # circle or ellipse case
+            chi_0 = np.sqrt(earth.mu) * dt * alpha
+        elif np.abs(alpha) <= ALPHA_CUTOFF:
+            # parabola case
+            # specific angular momentum
+            ang_momentum = np.cross(pos_0, vel_0, axis=0)
+            p = np.linalg.norm(ang_momentum) ** 2 / earth.mu
+            # cot(2s) = 3 dt sqrt(mu/p^3)
+            s = (np.pi / 2 - np.atan(3 * dt * np.sqrt(earth.mu / p ** 3))) / 2
+            # tan^3(w) = tan(s)
+            w = np.atan((np.tan(s)) ** (1 / 3))
+            # chi_0 = sqrt(p) 2 cot(2w)
+            chi_0 = np.sqrt(p) * 2 / np.tan(2 * w)
+        else:
+            # alpha < ALPHA_CUTOFF, hyperbola case
+            a = 1 / alpha
+            numerator = -2 * earth.mu * alpha * dt
+            denominator = np.dot(pos_0.squeeze(), vel_0.squeeze()) + np.sign(dt) * np.sqrt(-earth.mu * a) * (
+                    1 - pos_0_norm * alpha)
+            chi_0 = np.sign(dt) * np.sqrt(-a) * np.log(numerator / denominator)
+
+        chi_next = chi_0
+        iter = 0
+        while True:
+            iter += 1
+            chi = chi_next
+            psi = chi ** 2 * alpha
+            c2, c3 = find_c(psi)
+            r = chi ** 2 * c2 + np.dot(pos_0.squeeze(), vel_0.squeeze()) / np.sqrt(earth.mu) * chi * (
+                    1 - psi * c3) + pos_0_norm * (1 - psi * c2)
+            chi_next = chi + 1 / r * (
+                    np.sqrt(earth.mu) * dt - chi ** 3 * c3 - np.dot(pos_0.squeeze(), vel_0.squeeze()) / np.sqrt(
+                earth.mu) * chi ** 2 * c2 - pos_0_norm * chi * (1 - psi * c3))
+            if chi_next < 0:
+                chi_next = chi / 2
+
+            if abs(chi - chi_next) < 1e-6:
+                break
+
+            if iter > 100:
+                raise RuntimeError("Orbit propagation failed to converge after 100 iterations")
+
+        f = 1 - chi ** 2 / pos_0_norm * c2
+        g = dt - chi ** 3 / np.sqrt(earth.mu) * c3
+        f_dot = np.sqrt(earth.mu) / (r * pos_0_norm) * chi * (psi * c3 - 1)
+        g_dot = 1 - chi ** 2 / r * c2
+
+        pos = f * pos_0 + g * vel_0
+        vel = f_dot * pos_0 + g_dot * vel_0
+        return OrbitModel.from_pos_vel(pos.flatten(), vel.flatten())
 
 
 @dataclass(frozen=True)
