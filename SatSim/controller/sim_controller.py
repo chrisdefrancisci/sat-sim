@@ -1,3 +1,5 @@
+import itertools
+import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
@@ -67,6 +69,7 @@ class SimController(ttk.Frame):
         self.view.view3d.clear()
         self.view.pos_lvlh.clear()
         self.view.vel_lvlh.clear()
+        self.view.delta_v.clear()
 
         # Run model
         self.model.run_simulation()
@@ -86,6 +89,11 @@ class SimController(ttk.Frame):
         self.view.pos_lvlh.add_positions(full_t, pos_lvlh, color=palette[1], label=labels[1])
         _, vel_lvlh = self.model.get_vel_lvlh()
         self.view.vel_lvlh.add_positions(full_t, vel_lvlh, color=palette[1], label=labels[1])
+
+        # Update view - budget
+        dv_t = [impulse.time for impulse in self.model.impulse_results]
+        dv_y = list(itertools.accumulate([abs(impulse.magnitude) for impulse in self.model.impulse_results]))
+        self.view.delta_v.add_positions(np.asarray(dv_t), np.vstack([dv_t, dv_y]), color=palette[1])
 
         # Update controller
         self.total_duration.set(self.model.get_total_duration())
@@ -128,3 +136,4 @@ class SimController(ttk.Frame):
         self.view.view3d.update_times(t_min, t_max)
         self.view.pos_lvlh.update_times(t_min, t_max)
         self.view.vel_lvlh.update_times(t_min, t_max)
+        self.view.delta_v.update_times(t_min, t_max)
