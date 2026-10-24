@@ -4,7 +4,8 @@ from typing import Any
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from SatSim.model.settings_model import SettingsModel, HohmannModel, BiellipticModel, PhasingModel, OrbitModel
+from SatSim.model.settings_model import SettingsModel, HohmannSettingsModel, BiellipticSettingsModel, \
+    PhasingSettingsModel, OrbitSettingsModel
 from SatSim.controller.orbit_entry import OrbitEntry
 from SatSim.controller.defaults_manual_entry import DefaultManualEntry
 
@@ -17,7 +18,7 @@ class SatelliteSettings(ttk.Frame):
     and sensor and thruster parameters.
     """
 
-    def __init__(self, parent, target_model: OrbitModel, chaser_model: OrbitModel):
+    def __init__(self, parent, target_model: OrbitSettingsModel, chaser_model: OrbitSettingsModel):
         super().__init__(parent)
         target_frame = ttk.LabelFrame(self, text="Target")
         target_frame.pack(side="top", fill="both", expand=True, pady=5)
@@ -30,7 +31,7 @@ class SatelliteSettings(ttk.Frame):
 
 
 class HohmannSettings(ttk.Frame):
-    def __init__(self, parent, model: HohmannModel, *args, **kwargs):
+    def __init__(self, parent, model: HohmannSettingsModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
         ttk.Label(self, text="Final Radius (km):").grid(row=0, column=0, padx=(5, 0), sticky="e")
@@ -75,7 +76,7 @@ class HohmannSettings(ttk.Frame):
             self.delta_v_total.set("---")
             self.delta_t_total.set("---")
         if self.model.r_selection.get().lower() == "target":
-            self.model.r_custom.set(self.model.target_orbit.to_config().radius)
+            self.model.r_custom.set(self.model.target_orbit.to_orbit().radius)
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -86,7 +87,7 @@ class HohmannSettings(ttk.Frame):
 
 
 class BiellipticSettings(ttk.Frame):
-    def __init__(self, parent, model: BiellipticModel, *args, **kwargs):
+    def __init__(self, parent, model: BiellipticSettingsModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
         ttk.Label(self, text="Intermediate Radius Ratio:").grid(row=0, column=0, padx=(5, 0), sticky="e")
@@ -150,7 +151,7 @@ class BiellipticSettings(ttk.Frame):
 
 
 class PhasingSettings(ttk.Frame):
-    def __init__(self, parent, model: PhasingModel, *args, **kwargs):
+    def __init__(self, parent, model: PhasingSettingsModel, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.model = model
 
@@ -204,9 +205,9 @@ class ManeuverSettings(ttk.Frame):
         "Phasing": PhasingSettings
     }
     MODELS = {
-        "Hohmann": HohmannModel,
-        "Bielliptic": BiellipticModel,
-        "Phasing": PhasingModel
+        "Hohmann": HohmannSettingsModel,
+        "Bielliptic": BiellipticSettingsModel,
+        "Phasing": PhasingSettingsModel
     }
 
     def __init__(self, parent, settings: SettingsModel, maneuver_idx: int):
@@ -225,15 +226,15 @@ class ManeuverSettings(ttk.Frame):
         self.current_page: HohmannSettings | BiellipticSettings | PhasingSettings = None
 
         model = self.settings.orbit_maneuvers[self.maneuver_idx]
-        if isinstance(model, HohmannModel):
+        if isinstance(model, HohmannSettingsModel):
             self.current_page = HohmannSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Hohmann Transfer")
-        elif isinstance(model, BiellipticModel):
+        elif isinstance(model, BiellipticSettingsModel):
             self.current_page = BiellipticSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Bielliptic Transfer")
-        elif isinstance(model, PhasingModel):
+        elif isinstance(model, PhasingSettingsModel):
             self.current_page = PhasingSettings(self.content, model)
             self.current_page.pack(fill="both", expand=True)
             self.page_label.config(text="Phasing Orbit Transfer")
@@ -259,7 +260,7 @@ class ManeuverSettings(ttk.Frame):
         else:
             chaser = settings.orbit_maneuvers[-1].result_model
         settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, chaser))
-        return ManeuverSettings(parent, settings, len(settings.orbit_maneuvers) - 1 )
+        return ManeuverSettings(parent, settings, len(settings.orbit_maneuvers) - 1)
 
     def clear_traces(self) -> None:
         for var, trace_id in self.traces:
@@ -279,12 +280,13 @@ class ManeuverSettings(ttk.Frame):
             return
         self.clear_traces()
 
+
 class ManeuverDialog(ttk.Toplevel):
     def __init__(self, parent, options=None):
         super().__init__(parent,
-            transient=parent,  # stays on top of the parent
-            resizable=(False, False)
-        )
+                         transient=parent,  # stays on top of the parent
+                         resizable=(False, False)
+                         )
         # self.geometry("250x150")
         self.title('Manuever Selection')
         self.parent = parent
@@ -311,7 +313,7 @@ class ManeuverDialog(ttk.Toplevel):
     def on_ok(self):
         self.selected_value = self.combo.get()
         self.destroy()
-        
+
     def _center_on_parent(self):
         """
         Helper method to center the window on its parent. 
@@ -323,6 +325,7 @@ class ManeuverDialog(ttk.Toplevel):
         x = p.winfo_rootx() + (p.winfo_width() - self.winfo_width()) // 2
         y = p.winfo_rooty()
         self.geometry(f"+{x}+{y}")
+
 
 class SettingsDialog(ttk.Toplevel):
     """
@@ -393,7 +396,7 @@ class SettingsDialog(ttk.Toplevel):
         model = self.settings.orbit_maneuvers[idx]
         if model is None:
             return
-        
+
         if idx == 0:
             page.traces.extend(model.target_orbit.register_cb(page.refresh))
             page.traces.extend(model.chaser_orbit.register_cb(page.refresh))
@@ -411,11 +414,10 @@ class SettingsDialog(ttk.Toplevel):
             page.refresh()
 
         # Everything prev.result_model depends on:
-        page.traces.extend(prev.register_cb(sync))               # its own selections / custom values
+        page.traces.extend(prev.register_cb(sync))  # its own selections / custom values
         page.traces.extend(prev.chaser_orbit.register_cb(sync))  # previous link in the chain
         page.traces.extend(prev.target_orbit.register_cb(sync))  # r_final when set to "target"
         sync()
-
 
     def _load_maneuvers(self):
         for idx in range(len(self.settings.orbit_maneuvers)):
@@ -443,10 +445,10 @@ class SettingsDialog(ttk.Toplevel):
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
 
-        if active_index == 0: 
+        if active_index == 0:
             return
-        maneuver_idx = active_index - 1 # assumes tab 0 is the satellite page
-        page = self.maneuver_settings.pop(maneuver_idx) 
+        maneuver_idx = active_index - 1  # assumes tab 0 is the satellite page
+        page = self.maneuver_settings.pop(maneuver_idx)
         self.settings.orbit_maneuvers.pop(maneuver_idx)
         self.notebook.forget(active_index)
         page.destroy()

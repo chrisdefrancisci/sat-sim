@@ -4,10 +4,10 @@ from math import isclose
 import numpy as np
 
 from SatSim.common import earth
-from SatSim.model.maneuver_model import ImpulseConfig, SimConfig, OrbitConfig
+from SatSim.model.orbit_model import ImpulseModel, SimModel, OrbitModel
 
 
-class OrbitModel:
+class OrbitSettingsModel:
     r"""
     Hold the settings data for orbit parameters.
     """
@@ -41,22 +41,22 @@ class OrbitModel:
         return result
 
     @staticmethod
-    def from_config(config: OrbitConfig) -> 'OrbitModel':
+    def from_config(config: OrbitModel) -> 'OrbitSettingsModel':
         if config.eccentricity == 0.0 and config.inclination == 0.0:
-            return OrbitModel(
+            return OrbitSettingsModel(
                 altitude_km=config.semimajor - earth.radius,
                 true_longitude=config.true_anomaly,
                 inclination_deg=0.0
             )
         elif config.eccentricity == 0.0:
-            return OrbitModel(
+            return OrbitSettingsModel(
                 altitude_km=config.semimajor - earth.radius,
                 inclination_deg=config.inclination,
                 node=config.node,
                 arg_latitude=config.true_anomaly
             )
         elif config.inclination == 0.0:
-            return OrbitModel(
+            return OrbitSettingsModel(
                 altitude_km=config.semimajor * (1 - config.eccentricity) - earth.radius,
                 eccentricity=config.eccentricity,
                 inclination_deg=0.0,
@@ -64,7 +64,7 @@ class OrbitModel:
                 true_anomaly=config.true_anomaly
             )
         else:
-            return OrbitModel(
+            return OrbitSettingsModel(
                 altitude_km=config.semimajor * (1 - config.eccentricity) - earth.radius,
                 eccentricity=config.eccentricity,
                 inclination_deg=config.inclination,
@@ -73,7 +73,7 @@ class OrbitModel:
                 true_anomaly=config.true_anomaly
             )
 
-    def copy_from(self, other: 'OrbitModel') -> None:
+    def copy_from(self, other: 'OrbitSettingsModel') -> None:
         """Copy values from `other` in place, writing only variables that changed so downstream traces stay quiet."""
         FIELDS = ("altitude_km", "inclination_deg", "eccentricity", "node", "arg_perigee",
                   "true_anomaly", "true_longitude", "arg_latitude", "long_periapsis")
@@ -96,28 +96,28 @@ class OrbitModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self) -> OrbitConfig:
+    def to_orbit(self) -> OrbitModel:
         if self.eccentricity.get() == 0.0 and self.inclination_deg.get() == 0.0:
-            return OrbitConfig.from_circular_eq(
+            return OrbitModel.from_circular_eq(
                 radius=self.altitude_km.get() + earth.radius,
                 true_longitude=self.true_longitude.get()
             )
         elif self.eccentricity.get() == 0.0:
-            return OrbitConfig.from_circular_inc(
+            return OrbitModel.from_circular_inc(
                 radius=self.altitude_km.get() + earth.radius,
                 inclination=self.inclination_deg.get(),
                 node=self.node.get(),
                 arg_latitude=self.arg_latitude.get()
             )
         elif self.inclination_deg.get() == 0.0:
-            return OrbitConfig.from_elliptical_eq(
+            return OrbitModel.from_elliptical_eq(
                 semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()),
                 eccentricity=self.eccentricity.get(),
                 long_periapsis=self.long_periapsis.get(),
                 true_anomaly=self.true_anomaly.get()
             )
         else:
-            return OrbitConfig(
+            return OrbitModel(
                 semimajor=(self.altitude_km.get() + earth.radius) / (1 - self.eccentricity.get()),
                 eccentricity=self.eccentricity.get(),
                 inclination=self.inclination_deg.get(),
@@ -127,18 +127,18 @@ class OrbitModel:
             )
 
 
-class HohmannModel:
+class HohmannSettingsModel:
     r"""
     Hold the settings data for a Hohmann Transfer.
 
     Assumes circular and coplanar start and end orbits, with apogee kick exactly at $\nu = 180^\circ$
     """
 
-    def __init__(self, target_orbit: OrbitModel, chaser_orbit: OrbitModel, **kwargs):
+    def __init__(self, target_orbit: OrbitSettingsModel, chaser_orbit: OrbitSettingsModel, **kwargs):
         self.target_orbit = target_orbit
         self.chaser_orbit = chaser_orbit
         self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
-        self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_orbit.to_config().radius))
+        self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_orbit.to_orbit().radius))
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
@@ -174,14 +174,14 @@ class HohmannModel:
         if self.r_selection.get().lower() == "custom":
             return self.r_custom.get()
         elif self.r_selection.get().lower() == "target":
-            return self.target_orbit.to_config().radius
+            return self.target_orbit.to_orbit().radius
         else:
             raise ValueError(f"Unknown option for radius: {self.r_selection.get()}")
 
     @r_final.setter
     def r_final(self, r) -> None:
         matching_r_threshold = 0.001  # km = 1m
-        if r - self.target_orbit.to_config().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
+        if r - self.target_orbit.to_orbit().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
             self.r_selection.set("target".capitalize())
         else:
             self.r_selection.set("custom".capitalize())
@@ -208,7 +208,7 @@ class HohmannModel:
 
     @property
     def delta_t(self) -> float:
-        return np.pi * np.sqrt((self.chaser_orbit.to_config().radius + self.r_final) ** 3 / (8 * earth.mu))
+        return np.pi * np.sqrt((self.chaser_orbit.to_orbit().radius + self.r_final) ** 3 / (8 * earth.mu))
 
     @property
     def delta_v_1(self) -> float:
@@ -221,13 +221,13 @@ class HohmannModel:
         :return: Description
         :rtype: float
         """
-        r1 = self.chaser_orbit.to_config().radius
+        r1 = self.chaser_orbit.to_orbit().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r1) * (np.sqrt(2 * r2 / (r1 + r2)) - 1)
 
     @property
     def delta_v_2(self) -> float:
-        r1 = self.chaser_orbit.to_config().radius
+        r1 = self.chaser_orbit.to_orbit().radius
         r2 = self.r_final
         return np.sqrt(earth.mu / r2) * (1 - np.sqrt(2 * r1 / (r1 + r2)))
 
@@ -238,7 +238,7 @@ class HohmannModel:
     @property
     def delta_phase(self) -> float:
         """Phase change (deg)"""
-        a_chaser = self.chaser_orbit.to_config().radius
+        a_chaser = self.chaser_orbit.to_orbit().radius
         ang_vel_chaser = np.sqrt(earth.mu / a_chaser ** 3)
         return np.rad2deg(ang_vel_chaser) * self.t_start + 180
 
@@ -250,15 +250,15 @@ class HohmannModel:
         :see also: Vallado, Algorithm 45, page 367
         :return: Time (s)
         """
-        a_tgt = self.target_orbit.to_config().radius
-        a_int = self.chaser_orbit.to_config().radius
+        a_tgt = self.target_orbit.to_orbit().radius
+        a_int = self.chaser_orbit.to_orbit().radius
         ang_vel_tgt = np.sqrt(earth.mu / a_tgt ** 3)
         ang_vel_int = np.sqrt(earth.mu / a_int ** 3)
         lead_angle = ang_vel_tgt * self.delta_t
 
         # Pre-burn phase angle
         phase_angle_init = self.t_offset * ang_vel_tgt + np.deg2rad(
-            self.target_orbit.to_config().true_anomaly - self.chaser_orbit.to_config().true_anomaly)
+            self.target_orbit.to_orbit().true_anomaly - self.chaser_orbit.to_orbit().true_anomaly)
         # Desired phase angle for rendezvous
         phase_angle_begin = np.pi - lead_angle
         delta_phase = phase_angle_begin - phase_angle_init
@@ -273,20 +273,20 @@ class HohmannModel:
         return delta_phase / delta_ang_vel
 
     @property
-    def result_orbit(self) -> OrbitConfig:
+    def result_orbit(self) -> OrbitModel:
         """Resulting orbit parameters from this maneuver"""
-        return OrbitConfig(
+        return OrbitModel(
             semimajor=self.r_final,
             eccentricity=0.0,
             inclination=self.chaser_orbit.inclination_deg.get(),
             node=self.chaser_orbit.node.get(),
             arg_perigee=self.chaser_orbit.arg_perigee.get(),
-            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
+            true_anomaly=self.chaser_orbit.to_orbit().true_anomaly + self.delta_phase
         )
 
     @property
-    def result_model(self) -> OrbitModel:
-        return OrbitModel.from_config(self.result_orbit)
+    def result_model(self) -> OrbitSettingsModel:
+        return OrbitSettingsModel.from_config(self.result_orbit)
 
     def _on_destroy(self, event) -> None:
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -310,15 +310,15 @@ class HohmannModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
+    def to_impulse(self, t_offset=0.0) -> list[ImpulseModel]:
         self.t_offset = t_offset
         return [
-            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
+            ImpulseModel(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseModel(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
 
-class BiellipticModel:
+class BiellipticSettingsModel:
     r"""
     Hold the settings data for a Bi-elliptic Transfer.
 
@@ -332,7 +332,7 @@ class BiellipticModel:
     Ratio between intermediate orbit and initial orbit, ..math:`R^* = r_{int} / r_{initial}`.
     """
 
-    def __init__(self, target_orbit: OrbitModel, chaser_orbit: OrbitModel, **kwargs):
+    def __init__(self, target_orbit: OrbitSettingsModel, chaser_orbit: OrbitSettingsModel, **kwargs):
         self.target_orbit = target_orbit
         self.chaser_orbit = chaser_orbit
         self.ratio_int_selection = ttk.StringVar(value=kwargs.pop("selection", "custom"))
@@ -373,19 +373,19 @@ class BiellipticModel:
 
     @property
     def r_init(self) -> float:
-        return self.chaser_orbit.to_config().radius
+        return self.chaser_orbit.to_orbit().radius
 
     @property
     def r_int(self) -> float:
         if self.ratio_int_selection.get().lower() == "custom":
-            return self.ratio_int_custom.get() * self.chaser_orbit.to_config().radius
+            return self.ratio_int_custom.get() * self.chaser_orbit.to_orbit().radius
         else:
             raise ValueError(f"Unknown option for radius: {self.ratio_int_selection.get()}")
 
     @r_int.setter
     def r_int(self, r) -> None:
         matching_r_threshold = 0.001  # km = 1m
-        if r - self.target_orbit.to_config().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
+        if r - self.target_orbit.to_orbit().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
             self.ratio_final_selection.set(
                 "target".capitalize())  # TODO: remove, should be no options for intermediate orbit, other than min delta v maybe?
         else:
@@ -395,19 +395,19 @@ class BiellipticModel:
     @property
     def r_final(self) -> float:
         if self.ratio_final_selection.get().lower() == "custom":
-            return self.ratio_final_custom.get() * self.chaser_orbit.to_config().radius
+            return self.ratio_final_custom.get() * self.chaser_orbit.to_orbit().radius
         elif self.ratio_final_selection.get().lower() == "target":
-            return self.target_orbit.to_config().radius
+            return self.target_orbit.to_orbit().radius
         else:
             raise ValueError(f"Unknown option for radius: {self.ratio_final_selection.get()}")
 
     @r_final.setter
     def r_final(self, r) -> None:
         matching_r_threshold = 0.001  # km = 1m
-        if r - self.target_orbit.to_config().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
+        if r - self.target_orbit.to_orbit().semimajor < matching_r_threshold and self.target_orbit.eccentricity == 0:
             self.ratio_final_selection.set("target".capitalize())
             self.ratio_final_custom.set(
-                self.target_orbit.to_config().semimajor / self.chaser_orbit.to_config().semimajor)
+                self.target_orbit.to_orbit().semimajor / self.chaser_orbit.to_orbit().semimajor)
         else:
             self.ratio_final_selection.set("custom".capitalize())
             self.ratio_final_custom.set(r)
@@ -506,7 +506,7 @@ class BiellipticModel:
     @property
     def delta_phase(self) -> float:
         """Phase change (deg)"""
-        a_chaser = self.chaser_orbit.to_config().radius
+        a_chaser = self.chaser_orbit.to_orbit().radius
         ang_vel_chaser = np.sqrt(earth.mu / a_chaser ** 3)
         return np.rad2deg(ang_vel_chaser) * self.t_start + 360
 
@@ -515,20 +515,20 @@ class BiellipticModel:
         return abs(self.delta_v_1) + abs(self.delta_v_2) + abs(self.delta_v_3)
 
     @property
-    def result_orbit(self) -> OrbitConfig:
+    def result_orbit(self) -> OrbitModel:
         """Resulting orbit parameters from this maneuver"""
-        return OrbitConfig(
+        return OrbitModel(
             semimajor=self.r_final,
             eccentricity=0.0,
             inclination=self.chaser_orbit.inclination_deg.get(),
             node=self.chaser_orbit.node.get(),
             arg_perigee=self.chaser_orbit.arg_perigee.get(),
-            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
+            true_anomaly=self.chaser_orbit.to_orbit().true_anomaly + self.delta_phase
         )
 
     @property
-    def result_model(self) -> OrbitModel:
-        return OrbitModel.from_config(self.result_orbit)
+    def result_model(self) -> OrbitSettingsModel:
+        return OrbitSettingsModel.from_config(self.result_orbit)
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -550,27 +550,25 @@ class BiellipticModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
+    def to_impulse(self, t_offset=0.0) -> list[ImpulseModel]:
         return [
-            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=t_offset + self.t_start + self.delta_t_1, delta_v=self.delta_v_2),
-            ImpulseConfig(time=t_offset + self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
+            ImpulseModel(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseModel(time=t_offset + self.t_start + self.delta_t_1, delta_v=self.delta_v_2),
+            ImpulseModel(time=t_offset + self.t_start + self.delta_t_1 + self.delta_t_2, delta_v=self.delta_v_3)
         ]
 
 
-class PhasingModel:
+class PhasingSettingsModel:
     r"""
     Hold the settings data for a Phasing Orbit Transfer.
 
     :see also: Vallado, Algorithm 44, pg 366
     """
 
-    def __init__(self, target_orbit: OrbitModel, chaser_orbit: OrbitModel, **kwargs):
+    def __init__(self, target_orbit: OrbitSettingsModel, chaser_orbit: OrbitSettingsModel, **kwargs):
         self.target_orbit = target_orbit
         self.chaser_orbit = chaser_orbit
         self.orbit_count = ttk.IntVar(value=kwargs.pop("Count", 1))
-        # self.r_selection = ttk.StringVar(value=kwargs.pop("selection", "target"))
-        # self.r_custom = ttk.DoubleVar(value=kwargs.pop("Manual", target_orbit.to_config().radius))
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
@@ -608,8 +606,8 @@ class PhasingModel:
         INCLINATION_TOL = 0.01  # Deg
         NODE_TOL = 0.01  # Deg
         SEMIMAJOR_TOL = 1  # km
-        target = self.target_orbit.to_config()
-        chaser = self.chaser_orbit.to_config()
+        target = self.target_orbit.to_orbit()
+        chaser = self.chaser_orbit.to_orbit()
         if not isclose(target.eccentricity, chaser.eccentricity, rel_tol=ECCENTRICITY_TOL):
             raise ValueError(
                 f"Target and chaser eccentricity must agree, differ by {abs(target.eccentricity - chaser.eccentricity)}.")
@@ -651,8 +649,8 @@ class PhasingModel:
 
         """
         self._assert_same_orbit()
-        chaser = self.chaser_orbit.to_config()
-        target = self.target_orbit.to_config()
+        chaser = self.chaser_orbit.to_orbit()
+        target = self.target_orbit.to_orbit()
         ecc = chaser.eccentricity
         delta_true_anomaly = np.deg2rad(chaser.true_anomaly - target.true_anomaly)
         ang_vel = np.sqrt(earth.mu / chaser.semimajor ** 3)
@@ -673,7 +671,7 @@ class PhasingModel:
         semimajor_phasing = (np.sqrt(earth.mu) * self.delta_t / (2 * np.pi * self.orbit_count.get())) ** (2 / 3)
 
         # assuming circular for now
-        radius = self.target_orbit.to_config().radius
+        radius = self.target_orbit.to_orbit().radius
         vel_phasing = np.sqrt(2 * earth.mu * (1 / radius - 1 / (2 * semimajor_phasing)))
         vel_init = np.sqrt(earth.mu / radius)
         return vel_phasing - vel_init
@@ -690,25 +688,25 @@ class PhasingModel:
     def delta_phase(self) -> float:
         """Phase change (deg)"""
         self._assert_same_orbit()
-        chaser = self.chaser_orbit.to_config()
-        target = self.target_orbit.to_config()
+        chaser = self.chaser_orbit.to_orbit()
+        target = self.target_orbit.to_orbit()
         return chaser.true_anomaly - target.true_anomaly
 
     @property
-    def result_orbit(self) -> OrbitConfig:
+    def result_orbit(self) -> OrbitModel:
         """Resulting orbit parameters from this maneuver"""
-        return OrbitConfig(
-            semimajor=self.chaser_orbit.to_config().semimajor,
+        return OrbitModel(
+            semimajor=self.chaser_orbit.to_orbit().semimajor,
             eccentricity=0.0,
             inclination=self.chaser_orbit.inclination_deg.get(),
             node=self.chaser_orbit.node.get(),
             arg_perigee=self.chaser_orbit.arg_perigee.get(),
-            true_anomaly=self.chaser_orbit.to_config().true_anomaly + self.delta_phase
+            true_anomaly=self.chaser_orbit.to_orbit().true_anomaly + self.delta_phase
         )
 
     @property
-    def result_model(self) -> OrbitModel:
-        return OrbitModel.from_config(self.result_orbit)
+    def result_model(self) -> OrbitSettingsModel:
+        return OrbitSettingsModel.from_config(self.result_orbit)
 
     def _on_destroy(self, event) -> None:
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -729,11 +727,11 @@ class PhasingModel:
         ]
         return [(v, v.trace_add("write", cb)) for v in watched]
 
-    def to_config(self, t_offset=0.0) -> list[ImpulseConfig]:
+    def to_impulse(self, t_offset=0.0) -> list[ImpulseModel]:
         self.t_offset = t_offset
         return [
-            ImpulseConfig(time=t_offset + self.t_start, delta_v=self.delta_v_1),
-            ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
+            ImpulseModel(time=t_offset + self.t_start, delta_v=self.delta_v_1),
+            ImpulseModel(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
 
@@ -743,9 +741,9 @@ class SettingsModel:
     """
 
     def __init__(self):
-        self.target_orbit = OrbitModel()
-        self.chaser_orbit = OrbitModel()
-        self.orbit_maneuvers: list[HohmannModel | BiellipticModel | PhasingModel | None] = []
+        self.target_orbit = OrbitSettingsModel()
+        self.chaser_orbit = OrbitSettingsModel()
+        self.orbit_maneuvers: list[HohmannSettingsModel | BiellipticSettingsModel | PhasingSettingsModel | None] = []
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -758,13 +756,13 @@ class SettingsModel:
         result.orbit_maneuvers = copy.deepcopy(self.orbit_maneuvers, memo)
         return result
 
-    def to_config(self) -> SimConfig:
-        target = self.target_orbit.to_config()
-        chaser = self.chaser_orbit.to_config()
-        maneuvers: list[ImpulseConfig] = []
+    def to_model(self) -> SimModel:
+        target = self.target_orbit.to_orbit()
+        chaser = self.chaser_orbit.to_orbit()
+        maneuvers: list[ImpulseModel] = []
         t0 = 0.0  # Ensure maneuvers are timed to not overlap
         for m in self.orbit_maneuvers:
             if m is not None:
-                maneuvers.extend(m.to_config(t0))
+                maneuvers.extend(m.to_impulse(t0))
                 t0 += maneuvers[-1].time
-        return SimConfig(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)
+        return SimModel(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)

@@ -7,7 +7,7 @@ import tkinter as tk
 import ttkbootstrap as ttk
 
 from SatSim.common import earth
-from SatSim.controller.settings import OrbitModel
+from SatSim.controller.settings import OrbitSettingsModel
 
 
 class OrbitEntry(ttk.Frame):
@@ -21,7 +21,7 @@ class OrbitEntry(ttk.Frame):
         CIRCULAR_INC = 3
         ELLIPTIC_EQ = 4
 
-    def __init__(self, parent, model: OrbitModel, *args, **kwargs):
+    def __init__(self, parent, model: OrbitSettingsModel, *args, **kwargs):
         """
         Docstring for __init__
         
@@ -41,16 +41,17 @@ class OrbitEntry(ttk.Frame):
 
         # Altitude or Semimajor axis 
         self._semimajor_mode = False
-        self._syncing = False # guards against feedback loops from TclError
+        self._syncing = False  # guards against feedback loops from TclError
         self.alt_label = ttk.Label(self, text="Altitude (km)")
-        self.alt_label.grid(row=0, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.alt_label.grid(row=0, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.alt_label.bind("<Button-1>", self._toggle_alt_mode)
-        ttk.ToolTip(self.alt_label, bootstyle="info", text="Click to toggle between closest altitude and semimajor axis entry")
-        
+        ttk.ToolTip(self.alt_label, bootstyle="info",
+                    text="Click to toggle between closest altitude and semimajor axis entry")
+
         self.alt_var = ttk.StringVar(value=self._fmt(model.altitude_km.get()))
         self.alt_entry = ttk.Entry(self, textvariable=self.alt_var, width=entry_width)
         self.alt_entry.grid(row=0, column=1, padx=(0, padding), pady=padding, sticky="w")
-        ttk.ToolTip(self.alt_entry, bootstyle="info", 
+        ttk.ToolTip(self.alt_entry, bootstyle="info",
                     text='Very low Earth orbit < 450 km\n' +
                          'Low Earth orbit < 2,000 km\n' +
                          'Medium Earth orbit < 35,786 km\n' +
@@ -61,32 +62,32 @@ class OrbitEntry(ttk.Frame):
 
         # Inclination
         self.inc_label = ttk.Label(self, text="Inclination (deg)")
-        self.inc_label.grid(row=0, column=2, padx=(padding,2), pady=padding, sticky="e")
+        self.inc_label.grid(row=0, column=2, padx=(padding, 2), pady=padding, sticky="e")
         self.inc_entry = ttk.Entry(self, textvariable=model.inclination_deg, width=entry_width)
         self.inc_entry.grid(row=0, column=3, padx=(0, padding), pady=padding, sticky="w")
 
         # Eccentricity
         self.ecc_label = ttk.Label(self, text="Eccentricity")
-        self.ecc_label.grid(row=0, column=4, padx=(padding,2), pady=padding, sticky="e")
+        self.ecc_label.grid(row=0, column=4, padx=(padding, 2), pady=padding, sticky="e")
         self.ecc_entry = ttk.Entry(self, textvariable=model.eccentricity, width=entry_width)
         self.ecc_entry.grid(row=0, column=5, padx=(0, padding), pady=padding, sticky="w")
 
         # True Anomaly
         self.anom_label = ttk.Label(self, text="True Anomaly (deg)")
-        self.anom_label.grid(row=1, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.anom_label.grid(row=1, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.anom_entry = ttk.Entry(self, textvariable=model.true_anomaly, width=entry_width)
         self.anom_entry.grid(row=1, column=1, padx=(0, padding), pady=padding, sticky="w")
 
         # Right Ascension of the Ascending Node
         self.node_label = ttk.Label(self, text="RAAN (deg)")
-        self.node_label.grid(row=1, column=2, padx=(padding,2), pady=padding, sticky="e")
+        self.node_label.grid(row=1, column=2, padx=(padding, 2), pady=padding, sticky="e")
         ttk.ToolTip(self.node_label, bootstyle="info", text="Right Ascension of the Ascending Node")
         self.node_entry = ttk.Entry(self, textvariable=model.node, width=entry_width)
         self.node_entry.grid(row=1, column=3, padx=(0, padding), pady=padding, sticky="w")
 
         # Argument of Perigee
         self.argp_label = ttk.Label(self, text="Argument of Perigee (deg)")
-        self.argp_label.grid(row=1, column=4, padx=(padding,2), pady=padding, sticky="e")
+        self.argp_label.grid(row=1, column=4, padx=(padding, 2), pady=padding, sticky="e")
         self.argp_entry = ttk.Entry(self, textvariable=model.arg_perigee, width=entry_width)
         self.argp_entry.grid(row=1, column=5, padx=(0, padding), pady=padding, sticky="w")
 
@@ -176,28 +177,28 @@ class OrbitEntry(ttk.Frame):
 
     def _show_nominal(self):
         padding = self.padding
-        self.anom_label.grid(row=1, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.anom_label.grid(row=1, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.anom_entry.grid(row=1, column=1, padx=(0, padding), pady=padding, sticky="w")
-        self.node_label.grid(row=1, column=2, padx=(padding,2), pady=padding, sticky="e")
+        self.node_label.grid(row=1, column=2, padx=(padding, 2), pady=padding, sticky="e")
         self.node_entry.grid(row=1, column=3, padx=(0, padding), pady=padding, sticky="w")
-        self.argp_label.grid(row=1, column=4, padx=(padding,2), pady=padding, sticky="e")
+        self.argp_label.grid(row=1, column=4, padx=(padding, 2), pady=padding, sticky="e")
         self.argp_entry.grid(row=1, column=5, padx=(0, padding), pady=padding, sticky="w")
 
     def _show_circular_eq(self):
         padding = self.padding
-        self.true_long_label.grid(row=1, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.true_long_label.grid(row=1, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.true_long_entry.grid(row=1, column=1, padx=(0, padding), pady=padding, sticky="w")
 
     def _show_circular_inc(self):
         padding = self.padding
-        self.arg_lat_label.grid(row=1, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.arg_lat_label.grid(row=1, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.arg_lat_entry.grid(row=1, column=1, padx=(0, padding), pady=padding, sticky="w")
 
     def _show_elliptic_eq(self):
         padding = self.padding
-        self.anom_label.grid(row=1, column=0, padx=(padding,2), pady=padding, sticky="e")
+        self.anom_label.grid(row=1, column=0, padx=(padding, 2), pady=padding, sticky="e")
         self.anom_entry.grid(row=1, column=1, padx=(0, padding), pady=padding, sticky="w")
-        self.long_peri_label.grid(row=1, column=2, padx=(padding,2), pady=padding, sticky="e")
+        self.long_peri_label.grid(row=1, column=2, padx=(padding, 2), pady=padding, sticky="e")
         self.long_peri_entry.grid(row=1, column=3, padx=(0, padding), pady=padding, sticky="w")
 
     def _hide_display(self):
@@ -209,7 +210,7 @@ class OrbitEntry(ttk.Frame):
             self._hide_circular_inc()
         elif self.display_type == self.Display.ELLIPTIC_EQ:
             self._hide_elliptic_eq()
-    
+
     def _hide_nominal(self):
         self.anom_label.grid_forget()
         self.anom_entry.grid_forget()

@@ -2,8 +2,8 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from SatSim.model.settings_model import SettingsModel
-from SatSim.model.orbit_model import OrbitModel
-from SatSim.model.maneuver_model import ImpulseConfig, OrbitConfig
+from SatSim.model.orbit_dynamics import OrbitDynamics
+from SatSim.model.orbit_model import ImpulseModel, OrbitModel
 
 
 class ImpulseResultsModel:
@@ -18,8 +18,8 @@ class Simulate:
     def __init__(self, settings: SettingsModel):
         self.settings = settings
         self.impulse_results: list[ImpulseResultsModel] = []
-        self.maneuvers: list[ImpulseConfig] = []
-        self.orbits: list[OrbitModel] = []
+        self.maneuvers: list[ImpulseModel] = []
+        self.orbits: list[OrbitDynamics] = []
         self.orbit_events = []
         self.states = []
         self.times = []
@@ -45,7 +45,7 @@ class Simulate:
             return 1
 
     def _get_max_period(self, y0) -> float:
-        return np.max([OrbitConfig.from_pos_vel(y0[i * 6:i * 6 + 3], y0[i * 6 + 3:i * 6 + 6]).period for i in
+        return np.max([OrbitModel.from_pos_vel(y0[i * 6:i * 6 + 3], y0[i * 6 + 3:i * 6 + 6]).period for i in
                        range(0, len(self.orbits))])
 
     def run_simulation(self):
@@ -56,9 +56,9 @@ class Simulate:
         :return:
         """
         self._restart()
-        config = self.settings.to_config()
+        config = self.settings.to_model()
         dt = 5  # (s) TODO: make configurable
-        self.orbits = [OrbitModel(config.target_orbit), OrbitModel(config.chaser_orbit)]
+        self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True
