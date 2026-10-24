@@ -76,7 +76,7 @@ class HohmannSettings(ttk.Frame):
             self.delta_v_total.set("---")
             self.delta_t_total.set("---")
         if self.model.r_selection.get().lower() == "target":
-            self.model.r_custom.set(self.model.target_orbit.to_orbit().radius)
+            self.model.r_custom.set(self.model.target_init_orbit.to_orbit().radius)
 
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
@@ -257,9 +257,11 @@ class ManeuverSettings(ttk.Frame):
         """
         if len(settings.orbit_maneuvers) == 0:
             chaser = settings.chaser_orbit
+            target = settings.target_orbit
         else:
-            chaser = settings.orbit_maneuvers[-1].result_model
-        settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](settings.target_orbit, chaser))
+            chaser = settings.orbit_maneuvers[-1].chaser_model
+            target = settings.orbit_maneuvers[-1].target_model
+        settings.orbit_maneuvers.append(ManeuverSettings.MODELS[type](target, chaser))
         return ManeuverSettings(parent, settings, len(settings.orbit_maneuvers) - 1)
 
     def clear_traces(self) -> None:
@@ -388,7 +390,7 @@ class SettingsDialog(ttk.Toplevel):
         """
         Wire maneuver page `idx` to the things it depends on.
 
-        idx == 0: chaser is settings.chaser_orbit itself, so the page only needs refreshing.
+        idx == 0: chaser is settings.chaser_init_orbit itself, so the page only needs refreshing.
         idx > 0:  chaser is a private OrbitModel derived from the previous maneuver's result; keep it in sync.
                 Chaining handles the rest: updating maneuver k's chaser fires maneuver k+1's sync.
         """
@@ -398,8 +400,8 @@ class SettingsDialog(ttk.Toplevel):
             return
 
         if idx == 0:
-            page.traces.extend(model.target_orbit.register_cb(page.refresh))
-            page.traces.extend(model.chaser_orbit.register_cb(page.refresh))
+            page.traces.extend(model.target_init_orbit.register_cb(page.refresh))
+            page.traces.extend(model.chaser_init_orbit.register_cb(page.refresh))
             return
 
         prev = self.settings.orbit_maneuvers[idx - 1]
@@ -408,15 +410,15 @@ class SettingsDialog(ttk.Toplevel):
 
         def sync(*_):
             try:
-                model.chaser_orbit.copy_from(prev.result_model)
+                model.chaser_init_orbit.copy_from(prev.chaser_model)
             except (tk.TclError, ZeroDivisionError, ValueError):
                 return  # previous page is mid-edit or invalid; keep the last good values
             page.refresh()
 
         # Everything prev.result_model depends on:
         page.traces.extend(prev.register_cb(sync))  # its own selections / custom values
-        page.traces.extend(prev.chaser_orbit.register_cb(sync))  # previous link in the chain
-        page.traces.extend(prev.target_orbit.register_cb(sync))  # r_final when set to "target"
+        page.traces.extend(prev.chaser_init_orbit.register_cb(sync))  # previous link in the chain
+        page.traces.extend(prev.target_init_orbit.register_cb(sync))  # r_final when set to "target"
         sync()
 
     def _load_maneuvers(self):
@@ -459,7 +461,7 @@ class SettingsDialog(ttk.Toplevel):
             successor.clear_traces()
             if maneuver_idx == 0:
                 # It's now first in the chain, so its chaser is the satellite page's chaser again.
-                self.settings.orbit_maneuvers[0].chaser_orbit = self.settings.chaser_orbit
+                self.settings.orbit_maneuvers[0].chaser_init_orbit = self.settings.chaser_orbit
             self._link_maneuver(maneuver_idx)  # rewires to the new predecessor and re-syncs its chaser
             successor.refresh()
 
