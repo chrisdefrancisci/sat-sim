@@ -57,7 +57,7 @@ class OrbitModel:
             )
         elif config.inclination == 0.0:
             return OrbitModel(
-                altitude_km = config.semimajor * (1 - config.eccentricity) - earth.radius,
+                altitude_km=config.semimajor * (1 - config.eccentricity) - earth.radius,
                 eccentricity=config.eccentricity,
                 inclination_deg=0.0,
                 long_periapsis=config.arg_perigee,
@@ -65,10 +65,10 @@ class OrbitModel:
             )
         else:
             return OrbitModel(
-                altitude_km = config.semimajor * (1 - config.eccentricity) - earth.radius,
+                altitude_km=config.semimajor * (1 - config.eccentricity) - earth.radius,
                 eccentricity=config.eccentricity,
-                inclination_deg = config.inclination,
-                node = config.node,
+                inclination_deg=config.inclination,
+                node=config.node,
                 arg_perigee=config.arg_perigee,
                 true_anomaly=config.true_anomaly
             )
@@ -76,7 +76,7 @@ class OrbitModel:
     def copy_from(self, other: 'OrbitModel') -> None:
         """Copy values from `other` in place, writing only variables that changed so downstream traces stay quiet."""
         FIELDS = ("altitude_km", "inclination_deg", "eccentricity", "node", "arg_perigee",
-               "true_anomaly", "true_longitude", "arg_latitude", "long_periapsis")
+                  "true_anomaly", "true_longitude", "arg_latitude", "long_periapsis")
         for name in FIELDS:
             new = getattr(other, name).get()
             var = getattr(self, name)
@@ -126,6 +126,7 @@ class OrbitModel:
                 true_anomaly=self.true_anomaly.get()
             )
 
+
 class HohmannModel:
     r"""
     Hold the settings data for a Hohmann Transfer.
@@ -141,8 +142,8 @@ class HohmannModel:
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
-        self.t_offset = 0.0 # Used to calculate where target is in its orbit
-        self.traces = [] # Traces from registered callbacks
+        self.t_offset = 0.0  # Used to calculate where target is in its orbit
+        self.traces = []  # Traces from registered callbacks
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -273,7 +274,7 @@ class HohmannModel:
 
     @property
     def result_orbit(self) -> OrbitConfig:
-        """Resulting orbit parameters from this maneuver"""        
+        """Resulting orbit parameters from this maneuver"""
         return OrbitConfig(
             semimajor=self.r_final,
             eccentricity=0.0,
@@ -341,8 +342,8 @@ class BiellipticModel:
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
-        self.t_offset = 0.0 # Used to calculate where target is in its orbit
-        self.traces = [] # Traces from registered callbacks
+        self.t_offset = 0.0  # Used to calculate where target is in its orbit
+        self.traces = []  # Traces from registered callbacks
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -501,7 +502,7 @@ class BiellipticModel:
         v_trans2c = np.sqrt(2 * earth.mu / r3 - earth.mu / a_trans2)
         v_final = np.sqrt(earth.mu / r3)
         return v_final - v_trans2c
-    
+
     @property
     def delta_phase(self) -> float:
         """Phase change (deg)"""
@@ -512,10 +513,10 @@ class BiellipticModel:
     @property
     def delta_v_total(self) -> float:
         return abs(self.delta_v_1) + abs(self.delta_v_2) + abs(self.delta_v_3)
-    
+
     @property
     def result_orbit(self) -> OrbitConfig:
-        """Resulting orbit parameters from this maneuver"""        
+        """Resulting orbit parameters from this maneuver"""
         return OrbitConfig(
             semimajor=self.r_final,
             eccentricity=0.0,
@@ -528,15 +529,13 @@ class BiellipticModel:
     @property
     def result_model(self) -> OrbitModel:
         return OrbitModel.from_config(self.result_orbit)
-    
+
     def _on_destroy(self, event):
         # <Destroy> event also fires for child widgets; only react to this frame.
         if event.widget is not self:
             return
         for var, trace_id in self.traces:
             var.trace_remove("write", trace_id)
-
-    
 
     def register_cb(self, cb) -> list[tuple]:
         """
@@ -575,8 +574,8 @@ class PhasingModel:
         self.t_selection = ttk.StringVar(value=kwargs.pop("selection", "immediate"))
         self.t_custom = ttk.DoubleVar(value=kwargs.pop("Manual", 60.0))
 
-        self.t_offset = 0.0 # Used to calculate where target is in its orbit
-        self.traces = [] # Traces from registered callbacks
+        self.t_offset = 0.0  # Used to calculate where target is in its orbit
+        self.traces = []  # Traces from registered callbacks
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -605,22 +604,27 @@ class PhasingModel:
 
     def _assert_same_orbit(self) -> None:
         ECCENTRICITY_TOL = 0.01
-        ARG_PERIGEE_TOL = 0.01 # Deg
-        INCLINATION_TOL = 0.01 # Deg
-        NODE_TOL = 0.01 # Deg
-        SEMIMAJOR_TOL = 1 # km
+        ARG_PERIGEE_TOL = 0.01  # Deg
+        INCLINATION_TOL = 0.01  # Deg
+        NODE_TOL = 0.01  # Deg
+        SEMIMAJOR_TOL = 1  # km
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
         if not isclose(target.eccentricity, chaser.eccentricity, rel_tol=ECCENTRICITY_TOL):
-            raise ValueError(f"Target and chaser eccentricity must agree, differ by {abs(target.eccentricity - chaser.eccentricity)}.")
+            raise ValueError(
+                f"Target and chaser eccentricity must agree, differ by {abs(target.eccentricity - chaser.eccentricity)}.")
         if not isclose(target.arg_perigee, chaser.arg_perigee, rel_tol=ARG_PERIGEE_TOL):
-            raise ValueError(f"Target and chaser argument of perigee must agree, differ by {abs(target.arg_perigee - chaser.arg_perigee)} degrees.")
+            raise ValueError(
+                f"Target and chaser argument of perigee must agree, differ by {abs(target.arg_perigee - chaser.arg_perigee)} degrees.")
         if not isclose(target.inclination, chaser.inclination, rel_tol=INCLINATION_TOL):
-            raise ValueError(f"Target and chaser inclination must agree, differ by {abs(target.inclination - chaser.inclination)} degrees.")
+            raise ValueError(
+                f"Target and chaser inclination must agree, differ by {abs(target.inclination - chaser.inclination)} degrees.")
         if not isclose(target.node, chaser.node, rel_tol=NODE_TOL):
-            raise ValueError(f"Target and chaser right ascension of ascending node must agree, differ by {abs(target.node - chaser.node)} degrees.")
+            raise ValueError(
+                f"Target and chaser right ascension of ascending node must agree, differ by {abs(target.node - chaser.node)} degrees.")
         if not isclose(target.semimajor, chaser.semimajor, rel_tol=SEMIMAJOR_TOL):
-            raise ValueError(f"Target and chaser argument of perigee must agree, differ by {abs(target.semimajor - chaser.semimajor)} degrees.")
+            raise ValueError(
+                f"Target and chaser argument of perigee must agree, differ by {abs(target.semimajor - chaser.semimajor)} degrees.")
 
     @property
     def t_start(self) -> float:
@@ -670,7 +674,7 @@ class PhasingModel:
 
         # assuming circular for now
         radius = self.target_orbit.to_config().radius
-        vel_phasing = np.sqrt(2*earth.mu*(1/radius - 1/(2 * semimajor_phasing)))
+        vel_phasing = np.sqrt(2 * earth.mu * (1 / radius - 1 / (2 * semimajor_phasing)))
         vel_init = np.sqrt(earth.mu / radius)
         return vel_phasing - vel_init
 
@@ -692,7 +696,7 @@ class PhasingModel:
 
     @property
     def result_orbit(self) -> OrbitConfig:
-        """Resulting orbit parameters from this maneuver"""        
+        """Resulting orbit parameters from this maneuver"""
         return OrbitConfig(
             semimajor=self.chaser_orbit.to_config().semimajor,
             eccentricity=0.0,
@@ -732,6 +736,7 @@ class PhasingModel:
             ImpulseConfig(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
+
 class SettingsModel:
     """
     Model to represent the state of the settings UI.
@@ -740,7 +745,7 @@ class SettingsModel:
     def __init__(self):
         self.target_orbit = OrbitModel()
         self.chaser_orbit = OrbitModel()
-        self.orbit_maneuvers:list[HohmannModel|BiellipticModel|None] = []
+        self.orbit_maneuvers: list[HohmannModel | BiellipticModel | PhasingModel | None] = []
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -757,7 +762,7 @@ class SettingsModel:
         target = self.target_orbit.to_config()
         chaser = self.chaser_orbit.to_config()
         maneuvers: list[ImpulseConfig] = []
-        t0 = 0.0 # Ensure maneuvers are timed to not overlap
+        t0 = 0.0  # Ensure maneuvers are timed to not overlap
         for m in self.orbit_maneuvers:
             if m is not None:
                 maneuvers.extend(m.to_config(t0))

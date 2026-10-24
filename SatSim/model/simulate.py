@@ -95,13 +95,17 @@ class Simulate:
 
             # Index 0 corresponds to _impulse_events
             if len(sol.t_events[0]) > 0:
-                man = self.maneuvers.pop(0)  # remove maneuver from list
                 y0 = sol.y[:, -1]
-                # Apply impulsive delta v in the direction of the current velocity vector
-                v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
-                y0[9:12] += v_norm * man.delta_v
-                # Store result
-                self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
+                # "Do-while"
+                while True:
+                    man = self.maneuvers.pop(0)  # remove maneuver from list
+                    # Apply impulsive delta v in the direction of the current velocity vector
+                    v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
+                    y0[9:12] += v_norm * man.delta_v
+                    # Store result
+                    self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
+                    if len(self.maneuvers) == 0 or man.time != self.maneuvers[0].time:
+                        break
 
                 # Extend simulation length to capture at least a full rotation of the largest orbit
                 t0 = sol.t[-1]
@@ -160,11 +164,10 @@ class Simulate:
         # In track only aligns with velocity for circular orbits
         in_track = np.cross(cross_track, radial, axis=0)
 
-        rotation = np.stack((radial, in_track, cross_track), axis=0) # Should have (3,3,N) shape
+        rotation = np.stack((radial, in_track, cross_track), axis=0)  # Should have (3,3,N) shape
         # Back to (3, N) shape
-        err_lvlh =  np.einsum('ijn,jn->in', rotation, err_eci)
+        err_lvlh = np.einsum('ijn,jn->in', rotation, err_eci)
         return t, err_lvlh
-
 
     def get_vel_lvlh(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -183,13 +186,12 @@ class Simulate:
         # In track only aligns with velocity for circular orbits
         in_track = np.cross(cross_track, radial, axis=0)
 
-        rotation = np.stack((radial, in_track, cross_track), axis=0) # Should have (3,3,N) shape
+        rotation = np.stack((radial, in_track, cross_track), axis=0)  # Should have (3,3,N) shape
 
-        r_diff_lvlh =  np.einsum('ijn,jn->in', rotation, r_diff_eci)
+        r_diff_lvlh = np.einsum('ijn,jn->in', rotation, r_diff_eci)
         # Compute angular velocity
-        omega_eci = np.cross(r_target, v_target, axis=0) / np.sum(r_target**2, axis=0)
+        omega_eci = np.cross(r_target, v_target, axis=0) / np.sum(r_target ** 2, axis=0)
         omega_lvlh = np.einsum('ijn,jn->in', rotation, omega_eci)
 
         v_lvlh = np.einsum('ijn,jn->in', rotation, err_eci) - np.cross(omega_lvlh, r_diff_lvlh, axis=0)
         return t, v_lvlh
-
