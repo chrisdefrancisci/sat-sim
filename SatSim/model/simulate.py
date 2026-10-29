@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -71,7 +72,7 @@ class Simulate:
         config = self.settings.to_model()
         dt = 5  # (s) TODO: make configurable
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[1, 2, 3]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True
@@ -210,3 +211,14 @@ class Simulate:
 
         v_lvlh = np.einsum('ijn,jn->in', rotation, err_eci) - np.cross(omega_lvlh, r_diff_lvlh, axis=0)
         return t, v_lvlh
+
+    def get_delta_v(self) -> tuple[np.ndarray, np.ndarray]:
+        # Interpolate delta-v
+        dv_t = list([0.0])
+        dv_t.extend([impulse.time for impulse in self.impulse_results])
+        dv_dv = list([0.0])
+        dv_dv.extend(list(itertools.accumulate([abs(impulse.magnitude) for impulse in self.impulse_results])))
+        dv_idx = np.searchsorted(dv_t, np.asarray(self.times), side="right") - 1
+        dv_idx = np.clip(dv_idx, 0, None)
+        dv = np.asarray(dv_dv)[dv_idx]
+        return np.array(self.times), dv
