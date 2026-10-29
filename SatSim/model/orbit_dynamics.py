@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import numpy as np
 
 from SatSim.common import earth
@@ -12,6 +11,8 @@ class OrbitDynamics:
         \ddot{\mathbf{r}} = -\frac{\mu}{|\mathbf{r}|^3}\mathbf{r}
 
     """
+
+    STATE_LEN = 6
 
     def __init__(self, orbit_config: OrbitModel):
         """

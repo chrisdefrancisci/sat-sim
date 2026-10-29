@@ -91,9 +91,10 @@ class SimController(ttk.Frame):
         self.view.vel_lvlh.add_positions(full_t, vel_lvlh, color=palette[1], label=labels[1])
 
         # Update view - budget
-        dv_t = [impulse.time for impulse in self.model.impulse_results]
-        dv_y = list(itertools.accumulate([abs(impulse.magnitude) for impulse in self.model.impulse_results]))
-        self.view.delta_v.add_positions(np.asarray(dv_t), np.vstack([dv_t, dv_y]), color=palette[1])
+        if len(self.model.impulse_results) > 0:
+            dv_t = [impulse.time for impulse in self.model.impulse_results]
+            dv_y = list(itertools.accumulate([abs(impulse.magnitude) for impulse in self.model.impulse_results]))
+            self.view.delta_v.add_positions(np.asarray(dv_t), np.vstack([dv_t, dv_y]), color=palette[1])
 
         # Update controller
         self.total_duration.set(self.model.get_total_duration())

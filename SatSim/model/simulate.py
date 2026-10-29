@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from SatSim.common.quaternion import Quaternion
 from SatSim.model.settings_model import SettingsModel
+from SatSim.model.attitude_dynamics import AttitudeDynamics, MoiTensorCube
 from SatSim.model.orbit_dynamics import OrbitDynamics
 from SatSim.model.orbit_model import ImpulseModel, OrbitModel
 
@@ -20,6 +22,7 @@ class Simulate:
         self.impulse_results: list[ImpulseResultsModel] = []
         self.maneuvers: list[ImpulseModel] = []
         self.orbits: list[OrbitDynamics] = []
+        self.attitudes: list[AttitudeDynamics] = []
         self.orbit_events = []
         self.states = []
         self.times = []
@@ -33,8 +36,17 @@ class Simulate:
     @staticmethod
     def _dynamics(t, y, self: 'Simulate') -> np.ndarray:
         y_prime = np.zeros(y.shape)
-        for start_idx, orbit in enumerate(self.orbits):
-            y_prime[start_idx * 6:start_idx * 6 + 6] = orbit.dynamics(t, y[start_idx * 6:start_idx * 6 + 6])
+        for orbit_idx, orbit in enumerate(self.orbits):
+            start_state_idx = orbit_idx * OrbitDynamics.STATE_LEN
+            end_state_idx = start_state_idx + OrbitDynamics.STATE_LEN
+            y_prime[start_state_idx:end_state_idx] = OrbitDynamics.dynamics(t, y[start_state_idx:end_state_idx])
+
+        for attitude_idx, attitude in enumerate(self.attitudes):
+            moi = attitude.moi_tensor
+            start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + len(self.orbits) * OrbitDynamics.STATE_LEN
+            end_state_idx = start_state_idx + AttitudeDynamics.STATE_LENGTH
+            y_prime[start_state_idx:end_state_idx] = AttitudeDynamics.dynamics(t, y[start_state_idx:end_state_idx], moi)
+
         return y_prime
 
     @staticmethod
@@ -59,6 +71,7 @@ class Simulate:
         config = self.settings.to_model()
         dt = 5  # (s) TODO: make configurable
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[1, 2, 3]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True
@@ -66,6 +79,8 @@ class Simulate:
 
         t0 = 0.0
         y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
+        att0 = np.concatenate([attitude.initial_state() for attitude in self.attitudes])
+        y0 = np.concatenate((y0, att0))
 
         if len(self.maneuvers) > 0 and (self.maneuvers[0].time <= dt):
             man = self.maneuvers.pop(0)  # remove maneuver from list
