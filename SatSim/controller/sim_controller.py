@@ -1,5 +1,6 @@
 import numpy as np
 import queue
+import threading
 import tkinter as tk
 import ttkbootstrap as ttk
 
@@ -30,31 +31,42 @@ class SimController(ttk.Frame):
     def _build_widgets(self):
         body = ttk.Frame(self)
         body.pack(fill=tk.BOTH, expand=True)
+        body.columnconfigure(0, weight=1)
+
         self.info = ttk.Label(
             body,
             text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min",
             font=("TkDefaultFont", 10, "italic"),
         )
-        self.info.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+        self.info.grid(row=0, column=0, sticky="w", pady=(0, 10))
 
-        self.time_slider = TimeSlider(body, self.total_duration, self.start_var, self.end_var, lambda _=None: self._refresh_view())
-        self.time_slider.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0,10))
+        sim = ttk.Frame(body)
+        sim.grid(row=1, column=0, sticky="ew", pady=(0,10))
+        sim.columnconfigure(0, weight=1)
+
+        self.time_slider = TimeSlider(sim, self.total_duration, self.start_var, self.end_var, lambda _=None: self._refresh_view())
+        self.time_slider.grid(row=0, column=0, sticky="nsew")
         self.total_duration.trace_add('write', lambda *args: self.time_slider.refresh())
         self.start_var.trace_add('write', lambda *args: self.time_slider.refresh())
         self.end_var.trace_add('write', lambda *args: self.time_slider.refresh())
 
+        self.prog_frame = ttk.Frame(sim)
+        self.progress = ttk.Progressbar(self.prog_frame, maximum=100, bootstyle="success-striped")
+        self.progress.pack(fill=tk.BOTH, expand=True, padx=20)
+        self.prog_label = ttk.Label(self.prog_frame, bootstyle="info")
+        self.prog_label.pack(fill=tk.X, expand=True)
+        self.prog_frame.grid(row=0, column=0, sticky="nsew", pady=10)
+        self.prog_frame.lift()
+        self.time_slider.grid_remove()
+
         button_row = ttk.Frame(body)
-        button_row.grid(row=5, column=0, pady=(10, 0), sticky="w")
+        button_row.grid(row=2, column=0, pady=(10, 0), sticky="w")
         self.run_button = ttk.Button(button_row, text="Run Simulation",
                    command=lambda: self._run())
         self.run_button.pack(side="left", padx=4)
 
-        self.progress = ttk.Progressbar(body, maximum=100, bootstyle="success-striped")
-        self.progress.grid(row=6, column=0, padx=10, pady=5, sticky="ew")
-
         self.progress_q = queue.Queue()
 
-        body.columnconfigure(0, weight=1)
 
     def _run(self):
         self.view.view3d.clear()
@@ -65,13 +77,25 @@ class SimController(ttk.Frame):
         # Disable UI elements
         self.run_button.config(state="disabled")
         self.progress["value"] = 0
+        self.time_slider.grid_remove()
+        self.prog_frame.grid()
+        self.prog_frame.lift()
 
         # Run model
-        self.model.run_simulation()
+        threading.Thread(
+            target=self.model.run_simulation, 
+            args=(self.progress_q,),
+            daemon=True).start()
 
+        self._poll_queue()
+
+    def _display_result(self):
         # Re-enable UI elements
         self.run_button.config(state="enabled")
         self.progress["value"] = 100
+        self.prog_frame.grid_remove()
+        self.time_slider.grid()
+        self.time_slider.lift()
 
         # Update view - 3D
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
@@ -98,6 +122,27 @@ class SimController(ttk.Frame):
         self._set_range(0.0, self.total_duration.get())
         self.info.config(text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min")
 
+    def _poll_queue(self):
+        try:
+            kind, payload = self.progress_q.get_nowait()
+            if kind == "progress":
+                self.progress["value"] = payload
+                self.prog_label.config(text=f"{payload:.0f}%")
+            elif kind == "done":
+                self.progress["value"] = 100
+                self.prog_label.config(text="Done")
+                self.run_button.config(state="normal")
+                self.time_slider.lift()
+                self._display_result()
+                return
+            elif kind == "error":
+                self.prog_label.config(text=f"Error: {payload}")
+                self.run_button.config(state="normal")
+                return
+        except queue.Empty:
+            pass
+        self.after(50, self._poll_queue)
+            
     def _set_range(self, start, end):
         self.start_var.set(start)
         self.end_var.set(end)

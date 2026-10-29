@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+import queue
 from scipy.integrate import solve_ivp
 
 from SatSim.common.quaternion import Quaternion
@@ -28,14 +29,21 @@ class Simulate:
         self.states = []
         self.times = []
 
+        self.update_q: queue.Queue | None = None
+        self.t_final = 0.0
+        self.pct_complete = 0.0
+
     def _restart(self):
         self.impulse_results = []
         self.maneuvers = []
         self.orbits = []
         self.orbit_events = []
+        self.pct_complete = 0.0
 
     @staticmethod
     def _dynamics(t, y, self: 'Simulate') -> np.ndarray:
+        self._update_progress(t)
+        
         y_prime = np.zeros(y.shape)
         for orbit_idx, orbit in enumerate(self.orbits):
             start_state_idx = orbit_idx * OrbitDynamics.STATE_LEN
@@ -61,7 +69,23 @@ class Simulate:
         return np.max([OrbitModel.from_pos_vel(y0[i * 6:i * 6 + 3], y0[i * 6 + 3:i * 6 + 6]).period for i in
                        range(0, len(self.orbits))])
 
-    def run_simulation(self):
+    def _update_progress(self, t: np.floating):
+        """
+        Adds a payload to the queue with the percent complete. 
+        
+        Adding to the queue is a very slow operation so we only do it every few percent.
+        
+        :param t: Description
+        """
+        if t == 0.0 or self.update_q is None:
+            return
+        pct = 100 * t / self.t_final
+        if pct - self.pct_complete > 3.0:
+            self.pct_complete = pct
+            self.update_q.put(("progress", pct))
+
+
+    def run_simulation(self, update_q: queue.Queue):
         r"""
 
         Note that if :code:`solve_ivp`'s argument for relative tolerance, `rtol`, is not sufficiently small, this will not work.
@@ -69,6 +93,7 @@ class Simulate:
         :return:
         """
         self._restart()
+        self.update_q = update_q
         config = self.settings.to_model()
         dt = 5  # (s) TODO: make configurable
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
@@ -94,13 +119,13 @@ class Simulate:
         self.states = [y0]
 
         # Get at least one orbit or all manuevers
-        t_final = self._get_max_period(y0) * 1.1
+        self.t_final = self._get_max_period(y0) * 1.1
         if len(self.maneuvers) > 0:
-            t_final = max(t_final, max([man.time for man in self.maneuvers]))
+            self.t_final = max(self.t_final, max([man.time for man in self.maneuvers]))
 
-        while self.times[-1] < t_final:
+        while self.times[-1] < self.t_final:
             # Drop the first linspace point
-            t_eval = np.linspace(t0, t_final, int((t_final - t0) / dt) + 1)[1:]
+            t_eval = np.linspace(t0, self.t_final, int((self.t_final - t0) / dt) + 1)[1:]
 
             sol = solve_ivp(
                 self._dynamics, [t_eval[0], t_eval[-1]], y0, t_eval=t_eval,
@@ -125,7 +150,9 @@ class Simulate:
 
                 # Extend simulation length to capture at least a full rotation of the largest orbit
                 t0 = sol.t[-1]
-                t_final = max(t_final, self._get_max_period(y0) * 1.1 + sol.t[-1])
+                self.t_final = max(self.t_final, self._get_max_period(y0) * 1.1 + sol.t[-1])
+
+        update_q.put(("done", []))
 
     def get_total_duration(self) -> float:
         """
