@@ -1,7 +1,9 @@
 import numpy as np
+import queue
 import tkinter as tk
 import ttkbootstrap as ttk
 
+from SatSim.controller.time_slider import TimeSlider
 from SatSim.model.simulate import Simulate
 from SatSim.view.view_results import ResultsView
 
@@ -26,43 +28,33 @@ class SimController(ttk.Frame):
         self._refresh_view()  # initial draw
 
     def _build_widgets(self):
+        body = ttk.Frame(self)
+        body.pack(fill=tk.BOTH, expand=True)
         self.info = ttk.Label(
-            self,
+            body,
             text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min",
             font=("TkDefaultFont", 10, "italic"),
         )
         self.info.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
-        total_min = self.total_duration.get() / 60.0
+        self.time_slider = TimeSlider(body, self.total_duration, self.start_var, self.end_var, lambda _=None: self._refresh_view())
+        self.time_slider.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0,10))
+        self.total_duration.trace_add('write', lambda *args: self.time_slider.refresh())
+        self.start_var.trace_add('write', lambda *args: self.time_slider.refresh())
+        self.end_var.trace_add('write', lambda *args: self.time_slider.refresh())
 
-        # --- Start time slider ---
-        ttk.Label(self, text="Start time (min):").grid(row=1, column=0, sticky="w")
-        self.start_scale = ttk.Scale(
-            self, from_=0.0, to=total_min, variable=self.start_var,
-            orient="horizontal", command=lambda _=None: self._on_slide(),
-            length=320,
-        )
-        self.start_scale.grid(row=1, column=1, sticky="ew", padx=8)
-        self.start_label = ttk.Label(self, text=f"{self.start_var.get():.1f}")
-        self.start_label.grid(row=1, column=2, sticky="w")
+        button_row = ttk.Frame(body)
+        button_row.grid(row=5, column=0, pady=(10, 0), sticky="w")
+        self.run_button = ttk.Button(button_row, text="Run Simulation",
+                   command=lambda: self._run())
+        self.run_button.pack(side="left", padx=4)
 
-        # --- End time slider ---
-        ttk.Label(self, text="End time (min):").grid(row=2, column=0, sticky="w")
-        self.end_scale = ttk.Scale(
-            self, from_=0.0, to=total_min, variable=self.end_var,
-            orient="horizontal", command=lambda _=None: self._on_slide(),
-            length=320,
-        )
-        self.end_scale.grid(row=2, column=1, sticky="ew", padx=8)
-        self.end_label = ttk.Label(self, text=f"{self.end_var.get():.1f}")
-        self.end_label.grid(row=2, column=2, sticky="w")
+        self.progress = ttk.Progressbar(body, maximum=100, bootstyle="success-striped")
+        self.progress.grid(row=6, column=0, padx=10, pady=5, sticky="ew")
 
-        button_row = ttk.Frame(self)
-        button_row.grid(row=5, column=0, columnspan=3, pady=(10, 0), sticky="w")
-        ttk.Button(button_row, text="Run Simulation",
-                   command=lambda: self._run()).pack(side="left", padx=4)
+        self.progress_q = queue.Queue()
 
-        self.columnconfigure(1, weight=1)
+        body.columnconfigure(0, weight=1)
 
     def _run(self):
         self.view.view3d.clear()
@@ -70,8 +62,16 @@ class SimController(ttk.Frame):
         self.view.vel_lvlh.clear()
         self.view.delta_v.clear()
 
+        # Disable UI elements
+        self.run_button.config(state="disabled")
+        self.progress["value"] = 0
+
         # Run model
         self.model.run_simulation()
+
+        # Re-enable UI elements
+        self.run_button.config(state="enabled")
+        self.progress["value"] = 100
 
         # Update view - 3D
         palette = [ttk.Style().colors.get(c) for c in ttk.Style().colors]
@@ -95,41 +95,20 @@ class SimController(ttk.Frame):
 
         # Update controller
         self.total_duration.set(self.model.get_total_duration())
-        self.start_scale.configure(to=self.total_duration.get() / 60)
-        self.end_scale.configure(to=self.total_duration.get() / 60)
-        self._set_range(0.0, self.total_duration.get() / 60)
+        self._set_range(0.0, self.total_duration.get())
         self.info.config(text=f"Total simulated span ≈ {self.total_duration.get() / 60:.1f} min")
 
-    def _on_slide(self):
-        # Enforce start <= end so the selected window is always valid.
-        start = self.start_var.get()
-        end = self.end_var.get()
-        if start > end:
-            # Snap the slider that was just moved back so the range stays valid.
-            if float(self.start_scale.get()) != start:
-                pass
-            start, end = min(start, end), max(start, end)
-            self.start_var.set(start)
-            self.end_var.set(end)
-
-        self.start_label.config(text=f"{start:.1f}")
-        self.end_label.config(text=f"{end:.1f}")
-        self._refresh_view()
-
-    def _set_range(self, start_min, end_min):
-        self.start_var.set(start_min)
-        self.end_var.set(end_min)
-        self.start_label.config(text=f"{start_min:.1f}")
-        self.end_label.config(text=f"{end_min:.1f}")
+    def _set_range(self, start, end):
+        self.start_var.set(start)
+        self.end_var.set(end)
         self._refresh_view()
 
     def _refresh_view(self):
         """
 
         """
-        # *60 because slider is in minutes, but data is in seconds
-        t_min = self.start_var.get() * 60.0
-        t_max = self.end_var.get() * 60.0
+        t_min = self.start_var.get()
+        t_max = self.end_var.get()
 
         self.view.view3d.update_times(t_min, t_max)
         self.view.pos_lvlh.update_times(t_min, t_max)
