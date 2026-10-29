@@ -666,7 +666,9 @@ class PhasingSettingsModel:
         delta_true_anomaly = np.deg2rad(chaser.true_anomaly - target.true_anomaly)
         ang_vel = np.sqrt(earth.mu / chaser.semimajor ** 3)
 
-        return (np.pi * 2 * self.orbit_count.get() + delta_true_anomaly) / ang_vel
+        add_time = chaser.period if delta_true_anomaly < 0 else 0
+
+        return (np.pi * 2 * self.orbit_count.get() + delta_true_anomaly) / ang_vel + add_time
 
     @property
     def delta_v_1(self) -> float:
