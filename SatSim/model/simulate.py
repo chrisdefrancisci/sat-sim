@@ -27,18 +27,23 @@ class Simulate:
         self.orbits: list[OrbitDynamics] = []
         self.attitudes: list[AttitudeDynamics] = []
         self.orbit_events = []
-        self.states = []
+        self.results = []
         self.times = []
 
         self.update_q: queue.Queue | None = None
         self.t_final = 0.0
         self.pct_complete = 0.0
 
+    @property
+    def states(self) -> np.ndarray:
+        return np.asarray(self.results).T
+
     def _restart(self):
         self.impulse_results = []
         self.maneuvers = []
         self.orbits = []
         self.orbit_events = []
+        self.results = []
         self.pct_complete = 0.0
 
     @staticmethod
@@ -117,7 +122,7 @@ class Simulate:
             self.impulse_results.append(ImpulseResultsModel(t0, y0[6:9], man.delta_v))
 
         self.times = [t0]
-        self.states = [y0]
+        self.results = [y0]
 
         # Get at least one orbit or all manuevers
         self.t_final = self._get_max_period(y0) * 1.1
@@ -133,7 +138,7 @@ class Simulate:
                 args=(self,), rtol=1e-9, events=self._impulse_event
             )
             self.times.extend(sol.t)
-            self.states.extend(sol.y.T)
+            self.results.extend(sol.y.T)
 
             # Index 0 corresponds to _impulse_events
             if len(sol.t_events[0]) > 0:
@@ -171,7 +176,7 @@ class Simulate:
         :return: The times (s) and positions in the geocentric reference frame in km.
         """
         time_idxs = (np.asarray(self.times) >= t_min) & (np.asarray(self.times) <= t_max)
-        return np.array(self.times)[time_idxs], np.array(self.states).T[orbit_idx * 6:orbit_idx * 6 + 3, time_idxs]
+        return np.array(self.times)[time_idxs], self.states[orbit_idx * 6:orbit_idx * 6 + 3, time_idxs]
 
     def get_full_positions(self, orbit_idx: int) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -181,7 +186,7 @@ class Simulate:
         """
         if len(self.times) == 0:
             return np.array([]), np.array([])
-        return np.array(self.times), np.array(self.states).T[orbit_idx * 6:orbit_idx * 6 + 3, :]
+        return np.array(self.times), self.states[orbit_idx * 6:orbit_idx * 6 + 3, :]
 
     def get_full_velocities(self, orbit_idx: int) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -191,7 +196,7 @@ class Simulate:
         """
         if len(self.times) == 0:
             return np.array([]), np.array([])
-        return np.array(self.times), np.array(self.states).T[orbit_idx * 6 + 3:orbit_idx * 6 + 6, :]
+        return np.array(self.times), self.states[orbit_idx * 6 + 3:orbit_idx * 6 + 6, :]
 
     def get_pos_lvlh(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -256,6 +261,6 @@ class Simulate:
         end_state_idx = start_state_idx + 4
         rpy = np.zeros((3, len(self.times)))
         for idx in range(0, len(self.times)):
-            rpy[:, idx] = quaternion_to_rpy(np.asarray(self.states).T[start_state_idx:end_state_idx, idx])
+            rpy[:, idx] = quaternion_to_rpy(self.states[start_state_idx:end_state_idx, idx])
 
         return np.array(self.times), rpy
