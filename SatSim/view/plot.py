@@ -1,6 +1,7 @@
 """
 Classes to use ttkbootstrap themes with plots
 """
+import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 from mpl_toolkits.mplot3d import Axes3D
@@ -126,4 +127,83 @@ class Plot(ttk.Frame):
         self.canvas.draw_idle()
 
     def refresh(self):
+        self.canvas.draw_idle()
+
+
+class PlotSubplots(ttk.Frame):
+    def __init__(self, parent, nrows=1, ncols=1, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.style = ttk.Style()
+
+        self.figure = Figure(figsize=(5, 4), dpi=100)
+        self.axs = self.figure.subplots(nrows=nrows, ncols=ncols, sharex=nrows > 1, sharey=ncols > 1)
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self)
+
+        # pack_toolbar=False lets us control packing order
+        self.toolbar = ThemedToolbar(self.canvas, self, pack_toolbar=False)
+        self.toolbar.pack(side=BOTTOM, fill=X)
+        self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=YES)
+
+        self.apply_theme()
+
+    def _style_legends(self):
+        c = self.style.colors
+        legends = [l for l in self.figure.legends if l]
+        for legend in legends:
+            frame = legend.get_frame()
+            frame.set_facecolor(c.bg)
+            frame.set_edgecolor(c.border)
+            for text in legend.get_texts():
+                text.set_color(c.fg)
+
+    def set_legend_below(self, bottom=0.1):
+        """
+        Place a single-row legend beneath the figure, built from the
+        axes' labeled artists. Duplicate labels are collapsed.
+        """
+        entries = {}
+        for ax in np.squeeze(self.axs):
+            for handle, label in zip(*ax.get_legend_handles_labels()):
+                if label and not label.startswith("_") and label not in entries:
+                    entries[label] = handle
+
+        # Remove any previous legends
+        for legend in list(self.figure.legends):
+            legend.remove()
+
+        if entries:
+            self.figure.legend(
+                list(entries.values()), list(entries.keys()),
+                loc="lower center", ncol=len(entries), frameon=True,
+            )
+            self.figure.subplots_adjust(bottom=bottom)  # leave room for the legend
+
+        self._style_legends()
+
+    def apply_theme(self):
+        c = self.style.colors
+        self.figure.set_facecolor(c.bg)
+
+        # Plots
+        for ax in np.squeeze(self.axs):
+            if isinstance(ax, Axes3D):
+                ax.set_facecolor(c.bg)
+            else:
+                ax.set_facecolor(c.inputbg)
+            for item in (ax.xaxis.label, ax.yaxis.label, ax.title):
+                item.set_color(c.fg)
+            ax.tick_params(colors=c.fg)
+            for spine in ax.spines.values():
+                spine.set_color(c.border)
+            ax.grid(True, color=c.border, alpha=0.5)
+
+        self._style_legends()
+
+        # Toolbar
+        self.toolbar.apply_theme(c)
+
+        self.canvas.draw_idle()
+
+    def refresh(self):
+        self.figure.tight_layout()
         self.canvas.draw_idle()
