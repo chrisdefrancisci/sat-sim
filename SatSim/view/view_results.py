@@ -2,7 +2,7 @@ import ttkbootstrap as ttk
 
 from SatSim.view.plot import Plot
 from SatSim.view.view_3d import View3D
-from SatSim.view.view_2d import View2D
+from SatSim.view.view_2d import View2D, ViewRpy
 from SatSim.view.plot import PlotSubplots
 
 
@@ -45,7 +45,7 @@ class QuadPlotsView(ttk.Frame):
 
         self.plot_ne = View2D(right_pane)
         # self.plot_nw = View2D(left_pane)
-        self.plot_nw = PlotSubplots(left_pane, nrows=3, ncols=1)
+        self.plot_nw = ViewRpy(left_pane)
         self.plot_se = View2D(right_pane)
         self.plot_sw = View2D(left_pane)
 
@@ -82,7 +82,8 @@ class ResultsView(ttk.Frame):
         self.vel_lvlh.ax.set_xlabel('Radial (km/s)')
         self.vel_lvlh.ax.set_ylabel('In-track (km/s)')
 
-        # Quaternion plots view
+        # Angle plots view
+        self.view_rpy = self.viewError.plot_nw
 
         # Fuel consumption view
         self.viewBudget = LrPlotsView(self.notebook)

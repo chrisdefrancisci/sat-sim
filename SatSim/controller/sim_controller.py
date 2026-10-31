@@ -41,10 +41,11 @@ class SimController(ttk.Frame):
         self.info.grid(row=0, column=0, sticky="w", pady=(0, 10))
 
         sim = ttk.Frame(body)
-        sim.grid(row=1, column=0, sticky="ew", pady=(0,10))
+        sim.grid(row=1, column=0, sticky="ew", pady=(0, 10))
         sim.columnconfigure(0, weight=1)
 
-        self.time_slider = TimeSlider(sim, self.total_duration, self.start_var, self.end_var, lambda _=None: self._refresh_view())
+        self.time_slider = TimeSlider(sim, self.total_duration, self.start_var, self.end_var,
+                                      lambda _=None: self._refresh_view())
         self.time_slider.grid(row=0, column=0, sticky="nsew")
         self.total_duration.trace_add('write', lambda *args: self.time_slider.refresh())
         self.start_var.trace_add('write', lambda *args: self.time_slider.refresh())
@@ -62,11 +63,10 @@ class SimController(ttk.Frame):
         button_row = ttk.Frame(body)
         button_row.grid(row=2, column=0, pady=(10, 0), sticky="w")
         self.run_button = ttk.Button(button_row, text="Run Simulation",
-                   command=lambda: self._run())
+                                     command=lambda: self._run())
         self.run_button.pack(side="left", padx=4)
 
         self.progress_q = queue.Queue()
-
 
     def _run(self):
         self.view.view3d.clear()
@@ -83,7 +83,7 @@ class SimController(ttk.Frame):
 
         # Run model
         threading.Thread(
-            target=self.model.run_simulation, 
+            target=self.model.run_simulation,
             args=(self.progress_q,),
             daemon=True).start()
 
@@ -115,6 +115,7 @@ class SimController(ttk.Frame):
 
         # Update view - angle
         _, rpy = self.model.get_attitude_rpy()
+        self.view.view_rpy.add_rpy(full_t, np.rad2deg(rpy), color=palette[1], label="True Attitude")
 
         # Update view - budget
         full_t, full_dv = self.model.get_delta_v()
@@ -145,7 +146,7 @@ class SimController(ttk.Frame):
         except queue.Empty:
             pass
         self.after(50, self._poll_queue)
-            
+
     def _set_range(self, start, end):
         self.start_var.set(start)
         self.end_var.set(end)
