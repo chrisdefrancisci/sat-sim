@@ -107,11 +107,14 @@ class SimController(ttk.Frame):
         for impulse in self.model.impulse_results:
             self.view.view3d.add_impulse(impulse.time, impulse.pos, edgecolors=palette[1])
 
-        # Update view - error
+        # Update view - pos error
         _, pos_lvlh = self.model.get_pos_lvlh()
         self.view.pos_lvlh.add_positions(full_t, pos_lvlh, color=palette[1], label=labels[1])
         _, vel_lvlh = self.model.get_vel_lvlh()
         self.view.vel_lvlh.add_positions(full_t, vel_lvlh, color=palette[1], label=labels[1])
+
+        # Update view - angle
+        _, rpy = self.model.get_attitude_rpy()
 
         # Update view - budget
         full_t, full_dv = self.model.get_delta_v()

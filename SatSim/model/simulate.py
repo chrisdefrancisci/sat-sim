@@ -4,6 +4,7 @@ import queue
 from scipy.integrate import solve_ivp
 
 from SatSim.common.quaternion import Quaternion
+from SatSim.common.attitude_matrix import quaternion_to_rpy
 from SatSim.model.settings_model import SettingsModel
 from SatSim.model.attitude_dynamics import AttitudeDynamics, MoiTensorCube
 from SatSim.model.orbit_dynamics import OrbitDynamics
@@ -97,7 +98,7 @@ class Simulate:
         config = self.settings.to_model()
         dt = 5  # (s) TODO: make configurable
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True
@@ -170,7 +171,7 @@ class Simulate:
         :return: The times (s) and positions in the geocentric reference frame in km.
         """
         time_idxs = (np.asarray(self.times) >= t_min) & (np.asarray(self.times) <= t_max)
-        return np.array(self.times)[time_idxs], np.array(self.states).T[orbit_idx:orbit_idx + 3, time_idxs]
+        return np.array(self.times)[time_idxs], np.array(self.states).T[orbit_idx * 6:orbit_idx * 6 + 3, time_idxs]
 
     def get_full_positions(self, orbit_idx: int) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -249,3 +250,12 @@ class Simulate:
         dv_idx = np.clip(dv_idx, 0, None)
         dv = np.asarray(dv_dv)[dv_idx]
         return np.array(self.times), dv
+
+    def get_attitude_rpy(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + len(self.orbits) * OrbitDynamics.STATE_LEN        
+        end_state_idx = start_state_idx + 4
+        rpy = np.zeros((3, len(self.times)))
+        for idx in range(0, len(self.times)):
+            rpy[:, idx] = quaternion_to_rpy(np.asarray(self.states).T[start_state_idx:end_state_idx, idx])
+
+        return np.array(self.times), rpy
