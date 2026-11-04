@@ -1,6 +1,6 @@
 import numpy as np
 
-from SatSim.common.quaternion import skew_symmetric, Quaternion
+from SatSim.common.quaternion import cross_prod_matrix, Quaternion
 
 def _validate(q: np.ndarray | Quaternion) -> Quaternion:
     if isinstance(q, np.ndarray):
@@ -21,7 +21,7 @@ def attitude_matrix(q: np.ndarray | Quaternion) -> np.ndarray:
     vector = q.vector
     scalar = q.scalar.item()
     return ((scalar ** 2 - vector.T @ vector) * np.eye(3) 
-            - 2 * scalar * skew_symmetric(vector)
+            - 2 * scalar * cross_prod_matrix(vector)
             + 2 * vector @ vector.T)
 
 def quaternion_to_rpy(q: np.ndarray | Quaternion) -> np.ndarray:

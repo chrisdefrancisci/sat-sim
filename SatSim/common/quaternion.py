@@ -3,12 +3,23 @@ Implements quaternion operations using definitions from Crassidis and Markley.
 """
 import numpy as np
 
-def skew_symmetric(v: np.ndarray) -> np.ndarray:
+def cross_prod_matrix(v: np.ndarray) -> np.ndarray:
     r"""
-    Docstring for omega_matrix
+    Generates the skew-symmetric cross product-matrix for a vector
     
-    :param v: Description
-    :return: Description
+    The skew-symmetric cross-product matrix is defined as
+    
+    .. math::
+        [\vector{v} \times] \equiv
+        \begin{bmatrix*}[r]
+             0   & -v_3  &  v_2 \\
+             v_3 &  0    & -v_1 \\
+            -v_2 &  v_1  &  0 \\
+        \end{bmatrix*}
+    
+    :see also: Markley & Crassidis, Eq A.1, pg 345
+    :param v: Input vector.
+    :return: Cross-product matrix, :math:`[\vector{v} \times]`
     """
     if np.shape(v) not in {(3,), (3,1)}:
         raise ValueError(f"Input vector must have first dimension 4, but has shape {np.shape(v)}")
@@ -29,7 +40,7 @@ def omega_matrix(v: np.ndarray) -> np.ndarray:
     if np.shape(v) not in {(3,), (3,1)}:
         raise ValueError(f"Input vector must have first dimension 4, but has shape {np.shape(v)}")
     omega = np.zeros((4, 4))
-    omega[0:3, 0:3] = -skew_symmetric(v)
+    omega[0:3, 0:3] = -cross_prod_matrix(v)
     omega[0:3, 3] = v.flatten()
     omega[3, 0:3] = -v.T
     return omega
@@ -44,7 +55,7 @@ def gamma_matrix(v: np.ndarray) -> np.ndarray:
     if np.shape(v) not in {(3,), (3,1)}:
         raise ValueError(f"Input vector must have first dimension 4, but has shape {np.shape(v)}")
     gamma = np.zeros((4, 4))
-    gamma[0:3, 0:3] = skew_symmetric(v)
+    gamma[0:3, 0:3] = cross_prod_matrix(v)
     gamma[0:3, 3] = v.flatten()
     gamma[3, 0:3] = -v.T
     return gamma
@@ -55,14 +66,15 @@ class Quaternion:
     A class for quaternion operations.
 
     The quaternion is defined as
-    ..math::
-        \mathbf{q} = 
+    
+    .. math::
+        \vector{q} = 
             \begin{bmatrix}
-                \mathbf{q}_{1:3} \\
+                \vector{q}_{1:3} \\
                 q_4
             \end{bmatrix}
 
-    where :math:`\mathbf{q}_{1:3}` is the vector component of the quaternion and :math:`q_{4}` is the scalar. 
+    where :math:`\vector{q}_{1:3}` is the vector component of the quaternion and :math:`q_{4}` is the scalar. 
     """
     def __init__(self, q: np.ndarray):
         if np.shape(q) not in {(4,), (4,1), (3,), (3,1)}:
@@ -82,6 +94,12 @@ class Quaternion:
 
     def __repr__(self) -> str:
         return f"{self._q}"
+
+    def __add__(self, other:'Quaternion'):
+        return Quaternion(self._q + other._q)
+
+    def __sub__(self, other:'Quaternion'):
+        return Quaternion(self._q - other._q)
 
     def __mul__(self, other: float|np.floating):
         return Quaternion(self._q * other)
@@ -186,3 +204,11 @@ class Quaternion:
         Creates the identity quaternion.
         """
         return Quaternion(np.array([0,0,0,1]))
+
+    @classmethod
+    def norm(cls, obj) -> 'Quaternion':
+        r"""
+        Normalizes a quaternion
+        """
+        _q = np.linalg.norm(obj._q)
+        return Quaternion(_q)

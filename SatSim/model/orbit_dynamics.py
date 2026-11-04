@@ -8,7 +8,7 @@ class OrbitDynamics:
     r""" Orbit model
 
     .. math::
-        \ddot{\mathbf{r}} = -\frac{\mu}{|\mathbf{r}|^3}\mathbf{r}
+        \ddot{\vector{r}} = -\frac{\mu}{|\vector{r}|^3}\vector{r}
 
     """
 
@@ -28,12 +28,12 @@ class OrbitDynamics:
     def dynamics(t, state: np.ndarray) -> np.ndarray:
         r"""Simulates orbit dynamics.
 
-        For the state :math:`\mathbf{x} = \begin{bmatrix} \mathbf{r} \\ \mathbf{v} \end{bmatrix}`,
-        returns :math:`\dot{\mathbf{x}} = \begin{bmatrix} \mathbf{v} \\ \dot{\mathbf{v}} \end{bmatrix}` using the
+        For the state :math:`\vector{x} = \begin{bmatrix} \vector{r} \\ \vector{v} \end{bmatrix}`,
+        returns :math:`\dot{\vector{x}} = \begin{bmatrix} \vector{v} \\ \dot{\vector{v}} \end{bmatrix}` using the
         the two-body equation. [Vallado, Eq 1-14, pg 23]
 
         .. math::
-            \ddot{\mathbf{r}} = -\frac{\mu}{|\mathbf{r}|^3}\mathbf{r}
+            \ddot{\vector{r}} = -\frac{\mu}{|\vector{r}|^3}\vector{r}
 
 
         :see also: Vallado, Eq 1-14, pg 23

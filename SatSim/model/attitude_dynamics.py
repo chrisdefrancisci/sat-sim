@@ -1,6 +1,6 @@
 import numpy as np
 
-from SatSim.common.quaternion import skew_symmetric, Quaternion
+from SatSim.common.quaternion import cross_prod_matrix, Quaternion
 
 def MoiTensorCube(mass, length) -> np.ndarray:
     r"""
@@ -23,7 +23,7 @@ class AttitudeDynamics:
         ang_vel = np.reshape(state[4:], (3,1))
         d_attitude = 0.5 * Quaternion.cross(ang_vel, attitude)
         inv_moi = np.linalg.inv(moi_tensor)
-        cross_ang_vel = skew_symmetric(ang_vel)
+        cross_ang_vel = cross_prod_matrix(ang_vel)
         d_ang_vel = inv_moi @ (torque - cross_ang_vel @ moi_tensor @ ang_vel)
         return np.concatenate((d_attitude._q.flatten(), d_ang_vel.flatten()))
 
