@@ -26,6 +26,20 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 autodoc_member_order = 'groupwise'  # could also use 'bysource'
 
+autodoc_default_options = {
+    'members': True,
+    'private-members': True,
+    'undoc-members': True,
+}
+
+mathjax3_config = {
+    'tex': {
+        'macros': {
+            'vector': [r'\boldsymbol{\mathbf{#1}}', 1],     # \myvector{v}
+        }
+    }
+}
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 

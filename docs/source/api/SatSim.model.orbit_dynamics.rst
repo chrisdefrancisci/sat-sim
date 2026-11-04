@@ -1,7 +1,7 @@
-SatSim.model.maneuver\_model module
+SatSim.model.orbit\_dynamics module
 ===================================
 
-.. automodule:: SatSim.model.maneuver_model
+.. automodule:: SatSim.model.orbit_dynamics
    :members:
    :show-inheritance:
    :undoc-members:

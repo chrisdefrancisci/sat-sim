@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   SatSim.algorithms
    SatSim.common
    SatSim.controller
    SatSim.model

@@ -8,7 +8,9 @@ Submodules
    :maxdepth: 4
 
    SatSim.view.plot
+   SatSim.view.view_2d
    SatSim.view.view_3d
+   SatSim.view.view_results
 
 Module contents
 ---------------

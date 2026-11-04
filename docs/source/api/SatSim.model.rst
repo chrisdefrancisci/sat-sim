@@ -7,7 +7,8 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   SatSim.model.maneuver_model
+   SatSim.model.attitude_dynamics
+   SatSim.model.orbit_dynamics
    SatSim.model.orbit_model
    SatSim.model.settings_model
    SatSim.model.simulate

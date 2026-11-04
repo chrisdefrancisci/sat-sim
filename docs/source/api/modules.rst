@@ -1,8 +1,7 @@
-SatSim
-======
+sat-sim
+=======
 
 .. toctree::
    :maxdepth: 4
 
    SatSim
-   test
