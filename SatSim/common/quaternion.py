@@ -11,11 +11,11 @@ def cross_prod_matrix(v: np.ndarray) -> np.ndarray:
     
     .. math::
         [\vector{v} \times] \equiv
-        \begin{bmatrix*}[r]
+        \begin{bmatrix}
              0   & -v_3  &  v_2 \\
              v_3 &  0    & -v_1 \\
             -v_2 &  v_1  &  0 \\
-        \end{bmatrix*}
+        \end{bmatrix}
     
     :see also: Markley & Crassidis, Eq A.1, pg 345
     :param v: Input vector.
@@ -113,6 +113,9 @@ class Quaternion:
 
     def __truediv__(self, other: float|np.floating):
         self._q = self._q / other
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self._q, dtype=dtype)
 
     @property
     def vector(self) -> np.ndarray:

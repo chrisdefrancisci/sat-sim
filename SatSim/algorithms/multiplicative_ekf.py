@@ -70,7 +70,7 @@ class MissionModeMekf:
         r"""Filter evaluation period, :math:`\Delta t`"""
 
         self.process_noise = MissionModeMekf._process_noise_approx(dt, var_ang_vel, var_bias_walk)
-        r"""Function to return process noise :math:`Q_k` given :math:`\Delta t`"""
+        r"""Discretized process noise of the gyro noise and bias fluctuations."""
 
         self.attitude_est = Quaternion.eye()
         """Global attitude estimation"""
@@ -83,13 +83,13 @@ class MissionModeMekf:
 
         self.state = np.zeros((6,1))
         r"""
-        This is the actual state vector
+        This state vector of the filter, containing attitude error and bias error.
 
         .. math::
             \Delta\vector{x} =
                 \begin{bmatrix}
-                    \delta \vartheta
-                    \Delta \beta
+                    \delta \vector{\vartheta}
+                    \Delta \vector{\beta}
                 \end{bmatrix}
         """
 
@@ -99,6 +99,18 @@ class MissionModeMekf:
         return np.hstack((a_mat @ r_cross, np.zeros((3, 3))))
 
     def _compute_kalman_gain(self, reference: np.ndarray, var: np.floating) -> np.ndarray:
+        r"""
+        Calculates the Kalman gain for the :math:`i^{th}` measurement at time :math:`t_k`.
+
+        The Kalman gain is given by the expression:
+
+        .. math::
+            K_k = P_k^- H_k^T \left[ H_k P_k^- H_k^T + \sigma_i^2 I_3 \right]^{-1}
+        
+        :param reference: Reference attitude for the current measurement, :math:`\vector{r}_i|_{t_k}`
+        :param var: Variance of the current measurement, :math:`\sigma^2_i|_{t_k}`
+        :return: Gain, :math:`K_k`
+        """
         P = self.covariance # prior
         H = self._compute_sensitivity_matrix(reference)
         sigma = var
@@ -148,7 +160,7 @@ class MissionModeMekf:
         r"""
         Executes the reset step of the MEKF.
 
-        Sets the KF rotation state, :math:`\Delta \vartheta`, to 0. 
+        Sets the KF rotation state, :math:`\Delta \vector{\vartheta}`, to 0. 
         """
         q_prior = self.attitude_est
         theta = Quaternion.eye()

@@ -5,7 +5,7 @@ import numpy as np
 
 from SatSim.common import earth
 from SatSim.model.orbit_model import ImpulseModel, SimModel, OrbitModel
-
+from SatSim.model.array_vars import QuaternionVars
 
 class OrbitSettingsModel:
     r"""
@@ -755,6 +755,44 @@ class PhasingSettingsModel:
             ImpulseModel(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
+class GyroSettingsModel:
+    def __init__(self, **kwargs):
+
+        # initial values are based on Markley & Crassidis Example 6.2 pg 261
+        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
+        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13)) # rad^2/s
+        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19)) # rad^2/s^3
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        result.init_bias = ttk.DoubleVar(value=self.init_bias.get())
+        result.var_ang_vel = ttk.DoubleVar(value=self.var_ang_vel.get())
+        result.var_bias_walk = ttk.DoubleVar(value=self.var_bias_walk.get())
+
+class MekfSettingsModel:
+    def __init__(self, **kwargs):
+        self.dt = ttk.DoubleVar(value=kwargs.pop("dt", 1.0)) # s
+        self.init_attitude = QuaternionVars()
+        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
+        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13)) # rad^2/s
+        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19)) # rad^2/s^3
+        
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        result.dt = ttk.DoubleVar(value=self.dt.get())
+        result.init_bias = ttk.DoubleVar(value=self.init_bias.get())
+        result.init_attitude = copy.deepcopy(self.init_attitude)
+        result.var_ang_vel = ttk.DoubleVar(value=self.var_ang_vel.get())
+        result.var_bias_walk = ttk.DoubleVar(value=self.var_bias_walk.get())
+
+    def to_mekf_init(self) -> tuple:
+        return ()
 
 class SettingsModel:
     """

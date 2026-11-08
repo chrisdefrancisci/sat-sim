@@ -8,6 +8,7 @@ from SatSim.model.settings_model import SettingsModel, HohmannSettingsModel, Bie
     PhasingSettingsModel, OrbitSettingsModel
 from SatSim.controller.orbit_entry import OrbitEntry
 from SatSim.controller.defaults_manual_entry import DefaultManualEntry
+from SatSim.controller.estimator_settings import EstimatorSettings
 
 
 class SatelliteSettings(ttk.Frame):
@@ -334,6 +335,8 @@ class SettingsDialog(ttk.Toplevel):
     Modal window for displaying and editing settings.
     """
 
+    STATIC_PAGES = 2
+
     def __init__(self, parent, settings: SettingsModel):
         super().__init__(
             master=parent,
@@ -376,6 +379,7 @@ class SettingsDialog(ttk.Toplevel):
 
         self.satellite_settings = SatelliteSettings(self.notebook, self.settings.target_orbit,
                                                     self.settings.chaser_orbit)
+        self.estimator_settings = EstimatorSettings(self.notebook)
         self.maneuver_settings = []
 
         self._build_ui()
@@ -447,9 +451,9 @@ class SettingsDialog(ttk.Toplevel):
     def _delete_maneuver(self):
         active_index = self.notebook.index("current")
 
-        if active_index == 0:
+        if active_index < self.STATIC_PAGES:
             return
-        maneuver_idx = active_index - 1  # assumes tab 0 is the satellite page
+        maneuver_idx = active_index - self.STATIC_PAGES
         page = self.maneuver_settings.pop(maneuver_idx)
         self.settings.orbit_maneuvers.pop(maneuver_idx)
         self.notebook.forget(active_index)
@@ -466,10 +470,10 @@ class SettingsDialog(ttk.Toplevel):
             successor.refresh()
 
         # Tab titles are numbered, so renumber them.
-        for n, p in enumerate(self.maneuver_settings, start=1):
+        for n, p in enumerate(self.maneuver_settings, start=self.STATIC_PAGES):
             self.notebook.tab(p, text=f"Maneuver {n} Settings")
 
-        if self.notebook.index("end") <= 1:
+        if self.notebook.index("end") <= self.STATIC_PAGES:
             self.remove.state(["disabled"])
         self.status_text.config(text="Maneuver Removed", bootstyle="warning")
 
@@ -481,6 +485,7 @@ class SettingsDialog(ttk.Toplevel):
 
     def _build_ui(self):
         self.notebook.add(self.satellite_settings, text="Satellite Settings")
+        self.notebook.add(self.estimator_settings, text="Estimator Settings")
         self._load_maneuvers()
 
     def _save(self):
