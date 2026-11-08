@@ -7,7 +7,7 @@ from SatSim.common.quaternion import Quaternion
 from SatSim.model.array_vars import ArrayVars, QuaternionVars
 
 
-class VectorEntry(ttk.Frame):
+class ArrayEntry(ttk.Frame):
     """Frame with N labeled ttk.Entry widgets bound to a VectorVars."""
 
     def __init__(self, parent, array_vars: ArrayVars|None = None,
@@ -34,12 +34,10 @@ class VectorEntry(ttk.Frame):
         for row in range(0, shape[0]):
             for col in range(0, shape[1]):
                 idx = row * cols + col
-                entry_frame = ttk.Frame(self)
-                entry_frame.grid(row=row, column=col, stick="nsew")
-                lbl = ttk.Label(entry_frame, text=labels[idx], bootstyle="secondary")
-                lbl.pack(side=tk.LEFT, fill=None, expand=False, padx=(0,5), anchor="w")
-                ent = ttk.Entry(entry_frame, textvariable=self.array_vars[idx], width=width)
-                ent.pack(side=tk.LEFT, fill=None, expand=False, anchor="e")
+                lbl = ttk.Label(self, text=labels[idx], bootstyle="secondary")
+                lbl.grid(row=row, column=2 * col, padx=(0,5), sticky="w")
+                ent = ttk.Entry(self, textvariable=self.array_vars[idx], width=width)
+                ent.grid(row=row, column=2 * col + 1, padx=(0,5), sticky="w")
 
                 self.entries.append(ent)
 
@@ -50,7 +48,7 @@ class VectorEntry(ttk.Frame):
         self.array_vars.set(values)
 
 
-class QuaternionEntry(VectorEntry):
+class QuaternionEntry(ArrayEntry):
     def __init__(self, parent, quat_vars: QuaternionVars|None = None,
                  width=8, **kwargs):
         if quat_vars is None:
