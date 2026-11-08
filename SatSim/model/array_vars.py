@@ -64,7 +64,7 @@ class ArrayVars:
     def __copy__(self):
         result = self.__class__.__new__(self.__class__)
         result.__dict__.update(self.__dict__)
-        result.vars = [tk.DoubleVar(value=v) for v in self.get()]
+        result.vars = [tk.DoubleVar(value=float(v.item())) for v in self.get()]
         result.rows = self.rows
         result.cols = self.cols
         return result
