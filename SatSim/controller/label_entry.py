@@ -6,7 +6,7 @@ import tkinter as tk
 import ttkbootstrap as ttk
 
 
-class LabelEntryRow(ttk.Frame):
+class LabelEntry(ttk.Frame):
     """
     A horizontal row of label-entry pairs.
 
@@ -16,7 +16,7 @@ class LabelEntryRow(ttk.Frame):
         print(row.get_values())
     """
 
-    def __init__(self, parent, fields, labels=None, tooltips=None, variables=None, entry_width=15, padding=5, **kwargs):
+    def __init__(self, parent, fields, labels=None, tooltips=None, variables=None, entry_width=15, padding=5, orient="horizontal", **kwargs):
         super().__init__(parent, **kwargs)
 
         if labels is None:
@@ -32,13 +32,19 @@ class LabelEntryRow(ttk.Frame):
             if label_text is None:
                 label_text = field_name
             label = ttk.Label(self, text=label_text)
-            label.grid(row=0, column=2 * i, padx=(padding, 2), pady=padding, sticky="e")
 
             if var is not None:
                 entry = ttk.Entry(self, textvariable=var, width=entry_width)
             else:
                 entry = ttk.Entry(self, width=entry_width)
-            entry.grid(row=0, column=2 * i + 1, padx=(0, padding), pady=padding, sticky="w")
+
+            if orient.lower() == "horizontal":
+                label.grid(row=0, column=2 * i, padx=(padding, 2), pady=padding, sticky="e")
+                entry.grid(row=0, column=2 * i + 1, padx=(0, padding), pady=padding, sticky="w")
+            else:
+                label.grid(row=i, column=0, padx=(padding, 2), pady=padding, sticky="e")
+                entry.grid(row=i, column=1, padx=(0, padding), pady=padding, sticky="w")
+
             if tooltip_text is not None:
                 ttk.ToolTip(entry, text=tooltip_text, bootstyle="info")
 

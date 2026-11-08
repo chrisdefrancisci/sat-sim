@@ -790,9 +790,15 @@ class MekfSettingsModel:
         result.init_attitude = copy.deepcopy(self.init_attitude)
         result.var_ang_vel = ttk.DoubleVar(value=self.var_ang_vel.get())
         result.var_bias_walk = ttk.DoubleVar(value=self.var_bias_walk.get())
+        return result
 
-    def to_mekf_init(self) -> tuple:
-        return ()
+    def to_mekf_init(self) -> dict:
+        init = {"constructor": {"dt": self.dt.get(),
+                                "var_ang_vel": self.var_ang_vel.get(),
+                                "var_bias_walk": self.var_bias_walk.get()},
+                 "init": {"attitude": self.init_attitude.get(),
+                          "gyro_bias": self.init_bias.get()}}
+        return init
 
 class SettingsModel:
     """
@@ -802,6 +808,7 @@ class SettingsModel:
     def __init__(self):
         self.target_orbit = OrbitSettingsModel()
         self.chaser_orbit = OrbitSettingsModel()
+        self.estimator = MekfSettingsModel()
         self.orbit_maneuvers: list[HohmannSettingsModel | BiellipticSettingsModel | PhasingSettingsModel | None] = []
 
     def __deepcopy__(self, memo):
@@ -812,16 +819,21 @@ class SettingsModel:
         # Orbits must be copied before maneuvers
         result.target_orbit = copy.deepcopy(self.target_orbit, memo)
         result.chaser_orbit = copy.deepcopy(self.chaser_orbit, memo)
+        result.estimator = copy.deepcopy(self.estimator, memo)
         result.orbit_maneuvers = copy.deepcopy(self.orbit_maneuvers, memo)
         return result
 
     def to_model(self) -> SimModel:
         target = self.target_orbit.to_orbit()
         chaser = self.chaser_orbit.to_orbit()
+        estimator = self.estimator.to_mekf_init()
         maneuvers: list[ImpulseModel] = []
         t0 = 0.0  # Ensure maneuvers are timed to not overlap
         for m in self.orbit_maneuvers:
             if m is not None:
                 maneuvers.extend(m.to_impulse(t0))
                 t0 += maneuvers[-1].time
-        return SimModel(target_orbit=target, chaser_orbit=chaser, maneuvers=maneuvers)
+        return SimModel(target_orbit=target, 
+                        chaser_orbit=chaser,
+                        estimator=estimator,
+                        maneuvers=maneuvers)

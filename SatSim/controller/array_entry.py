@@ -36,10 +36,10 @@ class VectorEntry(ttk.Frame):
                 idx = row * cols + col
                 entry_frame = ttk.Frame(self)
                 entry_frame.grid(row=row, column=col, stick="nsew")
-                lbl = ttk.Label(entry_frame, text=labels[idx])
-                lbl.pack(side=tk.RIGHT, fill=None, expand=False, padx=(0,5), anchor="w")
+                lbl = ttk.Label(entry_frame, text=labels[idx], bootstyle="secondary")
+                lbl.pack(side=tk.LEFT, fill=None, expand=False, padx=(0,5), anchor="w")
                 ent = ttk.Entry(entry_frame, textvariable=self.array_vars[idx], width=width)
-                ent.pack(side=tk.RIGHT, fill=None, expand=False, anchor="e")
+                ent.pack(side=tk.LEFT, fill=None, expand=False, anchor="e")
 
                 self.entries.append(ent)
 
@@ -63,4 +63,4 @@ class QuaternionEntry(VectorEntry):
         return self.array_vars.to_quaternion()
 
     def set_quaternion(self, q: "Quaternion") -> None:
-        self.array_vars.set(np.asarray(q))
+        self.array_vars.set(np.asarray(q).flatten())

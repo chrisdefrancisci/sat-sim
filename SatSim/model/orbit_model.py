@@ -343,4 +343,5 @@ class OrbitModel:
 class SimModel:
     target_orbit: OrbitModel
     chaser_orbit: OrbitModel
+    estimator: dict
     maneuvers: list[ImpulseModel]

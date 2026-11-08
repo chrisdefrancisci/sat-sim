@@ -379,7 +379,7 @@ class SettingsDialog(ttk.Toplevel):
 
         self.satellite_settings = SatelliteSettings(self.notebook, self.settings.target_orbit,
                                                     self.settings.chaser_orbit)
-        self.estimator_settings = EstimatorSettings(self.notebook)
+        self.estimator_settings = EstimatorSettings(self.notebook, self.settings.estimator)
         self.maneuver_settings = []
 
         self._build_ui()
