@@ -83,12 +83,13 @@ class MissionModeMekf:
 
         self.state = np.zeros((6,1))
         r"""
-        This state vector of the filter, containing attitude error and bias error.
+        This state vector of the filter, containing attitude error, :math:`\delta \vector{\vartheta}`,
+        and bias error, :math:`\Delta \vector{\beta}`.
 
         .. math::
             \Delta\vector{x} =
                 \begin{bmatrix}
-                    \delta \vector{\vartheta}
+                    \delta \vector{\vartheta} \\
                     \Delta \vector{\beta}
                 \end{bmatrix}
         """
@@ -269,7 +270,7 @@ class MissionModeMekf:
         :param gyro_bias:
         :param covariance:
         """
-        self.attitude_est = attitude
+        self.attitude_est = Quaternion.norm(attitude)
         self.gyro_bias_est = gyro_bias
         self.covariance = covariance
         self.state = np.zeros((6,1))

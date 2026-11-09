@@ -112,7 +112,7 @@ class Quaternion:
         return Quaternion(q_new)
 
     def __truediv__(self, other: float|np.floating):
-        self._q = self._q / other
+        return Quaternion(self._q / other)
 
     def __array__(self, dtype=None, copy=None):
         return np.asarray(self._q, dtype=dtype)
@@ -213,5 +213,4 @@ class Quaternion:
         r"""
         Normalizes a quaternion
         """
-        _q = np.linalg.norm(obj._q)
-        return Quaternion(_q)
+        return obj / np.linalg.norm(obj._q)

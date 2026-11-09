@@ -4,6 +4,7 @@ from math import isclose
 import numpy as np
 
 from SatSim.common import earth
+from SatSim.common.quaternion import Quaternion
 from SatSim.model.orbit_model import ImpulseModel, SimModel, OrbitModel
 from SatSim.model.array_vars import QuaternionVars
 
@@ -775,10 +776,13 @@ class GyroSettingsModel:
 class MekfSettingsModel:
     def __init__(self, **kwargs):
         self.dt = ttk.DoubleVar(value=kwargs.pop("dt", 1.0)) # s
-        self.init_attitude = QuaternionVars()
-        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
         self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13)) # rad^2/s
         self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19)) # rad^2/s^3
+
+        self.init_attitude = QuaternionVars(kwargs.pop("attitude", (0, 0, 0, 1)))
+        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
+        self.init_var_att = ttk.DoubleVar(value=kwargs.pop("atttitude_var", 0.1)) # TODO
+        self.init_var_bias = ttk.DoubleVar(value=kwargs.pop("bias_var", 0.1)) # TODO
         
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -786,18 +790,32 @@ class MekfSettingsModel:
         memo[id(self)] = result
 
         result.dt = ttk.DoubleVar(value=self.dt.get())
-        result.init_bias = ttk.DoubleVar(value=self.init_bias.get())
-        result.init_attitude = copy.deepcopy(self.init_attitude)
         result.var_ang_vel = ttk.DoubleVar(value=self.var_ang_vel.get())
         result.var_bias_walk = ttk.DoubleVar(value=self.var_bias_walk.get())
+
+        result.init_attitude = copy.deepcopy(self.init_attitude)
+        result.init_bias = ttk.DoubleVar(value=self.init_bias.get())
+        result.init_var_att = ttk.DoubleVar(value=self.init_var_att.get())
+        result.init_var_bias = ttk.DoubleVar(value=self.init_var_bias.get()) 
         return result
 
     def to_mekf_init(self) -> dict:
+        """
+        Returns the settings to run the MissionModeMekf.
+        
+        :todo: This is kind of a hack. Revisit if/when I have multiple estimators that I am selecting between.
+        :param self: Description
+        :return: Description
+        """
+        P0 = np.eye(6)
+        np.fill_diagonal(P0[0:3, 0:3], self.init_var_att.get())
+        np.fill_diagonal(P0[3:6, 3:6], self.init_var_bias.get())
         init = {"constructor": {"dt": self.dt.get(),
                                 "var_ang_vel": self.var_ang_vel.get(),
                                 "var_bias_walk": self.var_bias_walk.get()},
-                 "init": {"attitude": self.init_attitude.get(),
-                          "gyro_bias": self.init_bias.get()}}
+                 "init": {"attitude": Quaternion(self.init_attitude.get()),
+                          "gyro_bias": self.init_bias.get(),
+                          "covariance": P0}}
         return init
 
 class SettingsModel:

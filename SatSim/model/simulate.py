@@ -3,6 +3,7 @@ import numpy as np
 import queue
 from scipy.integrate import solve_ivp
 
+from SatSim.algorithms.multiplicative_ekf import AttitudeObservationVec, MissionModeMekf
 from SatSim.common.quaternion import Quaternion
 from SatSim.common.attitude_matrix import quaternion_to_rpy
 from SatSim.model.settings_model import SettingsModel
@@ -28,6 +29,7 @@ class Simulate:
         self.attitudes: list[AttitudeDynamics] = []
         self.orbit_events = []
         self.results = []
+        self.estimate = []
         self.times = []
 
         self.update_q: queue.Queue | None = None
@@ -44,6 +46,7 @@ class Simulate:
         self.orbits = []
         self.orbit_events = []
         self.results = []
+        self.estimate = []
         self.pct_complete = 0.0
 
     @staticmethod
@@ -101,7 +104,7 @@ class Simulate:
         self._restart()
         self.update_q = update_q
         config = self.settings.to_model()
-        dt = 5  # (s) TODO: make configurable
+        dt = config.estimator.get("dt", 5.0)
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
         self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
         self.maneuvers = config.maneuvers
@@ -125,9 +128,14 @@ class Simulate:
         self.results = [y0]
 
         # Get at least one orbit or all manuevers
+        # TODO: either recompute final orbit or pass in run time to settings. 
+        #  This is a silly hack when we know what the final orbits are.
         self.t_final = self._get_max_period(y0) * 1.1
         if len(self.maneuvers) > 0:
             self.t_final = max(self.t_final, max([man.time for man in self.maneuvers]))
+
+        estimator = MissionModeMekf(**config.estimator["constructor"])
+        estimator.initialize(**config.estimator["init"])
 
         while self.times[-1] < self.t_final:
             # Drop the first linspace point
