@@ -341,6 +341,7 @@ class OrbitModel:
 
 @dataclass(frozen=True)
 class SimModel:
+    sim_time: float
     target_orbit: OrbitModel
     chaser_orbit: OrbitModel
     estimator: dict

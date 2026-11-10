@@ -8,6 +8,7 @@ from SatSim.common.quaternion import Quaternion
 from SatSim.model.orbit_model import ImpulseModel, SimModel, OrbitModel
 from SatSim.model.array_vars import QuaternionVars
 
+
 class OrbitSettingsModel:
     r"""
     Hold the settings data for orbit parameters.
@@ -756,13 +757,13 @@ class PhasingSettingsModel:
             ImpulseModel(time=t_offset + self.t_start + self.delta_t, delta_v=self.delta_v_2)
         ]
 
+
 class GyroSettingsModel:
     def __init__(self, **kwargs):
-
         # initial values are based on Markley & Crassidis Example 6.2 pg 261
-        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
-        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13)) # rad^2/s
-        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19)) # rad^2/s^3
+        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5))  # rad/s
+        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13))  # rad^2/s
+        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19))  # rad^2/s^3
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -773,17 +774,18 @@ class GyroSettingsModel:
         result.var_ang_vel = ttk.DoubleVar(value=self.var_ang_vel.get())
         result.var_bias_walk = ttk.DoubleVar(value=self.var_bias_walk.get())
 
+
 class MekfSettingsModel:
     def __init__(self, **kwargs):
-        self.dt = ttk.DoubleVar(value=kwargs.pop("dt", 1.0)) # s
-        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13)) # rad^2/s
-        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19)) # rad^2/s^3
+        self.dt = ttk.DoubleVar(value=kwargs.pop("dt", 1.0))  # s
+        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13))  # rad^2/s
+        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19))  # rad^2/s^3
 
         self.init_attitude = QuaternionVars(kwargs.pop("attitude", (0, 0, 0, 1)))
-        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5)) # rad/s
-        self.init_var_att = ttk.DoubleVar(value=kwargs.pop("atttitude_var", 0.1)) # TODO
-        self.init_var_bias = ttk.DoubleVar(value=kwargs.pop("bias_var", 0.1)) # TODO
-        
+        self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5))  # rad/s
+        self.init_var_att = ttk.DoubleVar(value=kwargs.pop("atttitude_var", 0.1))  # TODO
+        self.init_var_bias = ttk.DoubleVar(value=kwargs.pop("bias_var", 0.1))  # TODO
+
     def __deepcopy__(self, memo):
         cls = self.__class__
         result = cls.__new__(cls)
@@ -796,7 +798,7 @@ class MekfSettingsModel:
         result.init_attitude = copy.deepcopy(self.init_attitude)
         result.init_bias = ttk.DoubleVar(value=self.init_bias.get())
         result.init_var_att = ttk.DoubleVar(value=self.init_var_att.get())
-        result.init_var_bias = ttk.DoubleVar(value=self.init_var_bias.get()) 
+        result.init_var_bias = ttk.DoubleVar(value=self.init_var_bias.get())
         return result
 
     def to_mekf_init(self) -> dict:
@@ -813,10 +815,11 @@ class MekfSettingsModel:
         init = {"constructor": {"dt": self.dt.get(),
                                 "var_ang_vel": self.var_ang_vel.get(),
                                 "var_bias_walk": self.var_bias_walk.get()},
-                 "init": {"attitude": Quaternion(self.init_attitude.get()),
-                          "gyro_bias": self.init_bias.get(),
-                          "covariance": P0}}
+                "init": {"attitude": Quaternion(self.init_attitude.get()),
+                         "gyro_bias": self.init_bias.get(),
+                         "covariance": P0}}
         return init
+
 
 class SettingsModel:
     """
@@ -851,7 +854,12 @@ class SettingsModel:
             if m is not None:
                 maneuvers.extend(m.to_impulse(t0))
                 t0 += maneuvers[-1].time
-        return SimModel(target_orbit=target, 
+        if len(self.orbit_maneuvers) > 0 and self.orbit_maneuvers[-1] is not None:
+            t_total = t0 + self.orbit_maneuvers[-1].target_orbit.period * 1.1
+        else:
+            t_total = max(target.period, chaser.period) * 1.1
+        return SimModel(sim_time=t_total,
+                        target_orbit=target,
                         chaser_orbit=chaser,
                         estimator=estimator,
                         maneuvers=maneuvers)

@@ -52,7 +52,7 @@ class Simulate:
     @staticmethod
     def _dynamics(t, y, self: 'Simulate') -> np.ndarray:
         self._update_progress(t)
-        
+
         y_prime = np.zeros(y.shape)
         for orbit_idx, orbit in enumerate(self.orbits):
             start_state_idx = orbit_idx * OrbitDynamics.STATE_LEN
@@ -93,7 +93,6 @@ class Simulate:
             self.pct_complete = pct
             self.update_q.put(("progress", pct))
 
-
     def run_simulation(self, update_q: queue.Queue):
         r"""
 
@@ -106,7 +105,8 @@ class Simulate:
         config = self.settings.to_model()
         dt = config.estimator.get("dt", 5.0)
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T, MoiTensorCube(1, 0.001))] # TODO: make configurable
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T,
+                                           MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = config.maneuvers
         self.maneuvers.sort(key=lambda x: x.time)
         self._impulse_event.terminal = True
@@ -127,12 +127,7 @@ class Simulate:
         self.times = [t0]
         self.results = [y0]
 
-        # Get at least one orbit or all manuevers
-        # TODO: either recompute final orbit or pass in run time to settings. 
-        #  This is a silly hack when we know what the final orbits are.
-        self.t_final = self._get_max_period(y0) * 1.1
-        if len(self.maneuvers) > 0:
-            self.t_final = max(self.t_final, max([man.time for man in self.maneuvers]))
+        self.t_final = config.sim_time
 
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
@@ -162,9 +157,8 @@ class Simulate:
                     if len(self.maneuvers) == 0 or man.time != self.maneuvers[0].time:
                         break
 
-                # Extend simulation length to capture at least a full rotation of the largest orbit
+                # Evaluation now starts at previous time
                 t0 = sol.t[-1]
-                self.t_final = max(self.t_final, self._get_max_period(y0) * 1.1 + sol.t[-1])
 
         update_q.put(("done", []))
 
@@ -265,7 +259,7 @@ class Simulate:
         return np.array(self.times), dv
 
     def get_attitude_rpy(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
-        start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + len(self.orbits) * OrbitDynamics.STATE_LEN        
+        start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + len(self.orbits) * OrbitDynamics.STATE_LEN
         end_state_idx = start_state_idx + 4
         rpy = np.zeros((3, len(self.times)))
         for idx in range(0, len(self.times)):
