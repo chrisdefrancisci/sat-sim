@@ -117,6 +117,8 @@ class SimController(ttk.Frame):
         # Update view - angle
         _, rpy = self.model.get_attitude_rpy()
         self.view.view_rpy.add_rpy(full_t, np.rad2deg(rpy), color=palette[1], label="True Attitude")
+        _, meas_rpy = self.model.get_meas()
+        self.view.view_rpy.add_rpy(full_t, np.rad2deg(meas_rpy), color=palette[2], label="Measured Attitude")
 
         # Update view - budget
         full_t, full_dv = self.model.get_delta_v()

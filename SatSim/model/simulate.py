@@ -11,6 +11,7 @@ from SatSim.model.settings_model import SettingsModel
 from SatSim.model.attitude_dynamics import AttitudeDynamics, MoiTensorCube
 from SatSim.model.orbit_dynamics import OrbitDynamics
 from SatSim.model.orbit_model import ImpulseModel, OrbitModel
+from SatSim.model.star_tracker import StarTracker
 
 
 class ImpulseResultsModel:
@@ -37,8 +38,18 @@ class Simulate:
         self.t_final = 0.0
         self.pct_complete = 0.0
 
+
+    @property
+    def attitude_start(self):
+        return len(self.orbits) * OrbitDynamics.STATE_LEN
+    
+    @property
+    def attitude_end(self):
+        return self.attitude_start + AttitudeDynamics.STATE_LENGTH
+    
     @property
     def states(self) -> np.ndarray:
+        # TODO: deprecated, delete
         return np.asarray(self.results)
 
     def _restart(self):
@@ -103,6 +114,9 @@ class Simulate:
         :param y: State vector
         :return: Update state vector with :math:`\Delta v` applied.
         """
+        if not self.maneuvers:
+            return y
+        
         burn_time = self.maneuvers[0].time
         while self.maneuvers and self.maneuvers[0].time == burn_time:
             man = self.maneuvers.popleft()
@@ -142,7 +156,7 @@ class Simulate:
         config = self.settings.to_model()
         dt = config.estimator.get("dt", 5.0)
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T,
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0.001, 0.005, 0.01]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))
         self._impulse_event.terminal = True
@@ -161,6 +175,10 @@ class Simulate:
         self.results = np.empty((len(y), len(self.times)))
         self.results[:, 0] = y.T
 
+        sensor = StarTracker((1, 11), 36)
+        self.meas = np.empty((3, len(self.times)))
+        self.meas[:, 0] = np.zeros(3)
+
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
 
@@ -170,7 +188,9 @@ class Simulate:
             self.results[:, i] = y
 
             # Construct measurements
-
+            meas = sensor.run(Quaternion(y[self.attitude_start:self.attitude_start+4]))
+            self.meas[:, i] = sum(m.body for m in meas).flat
+            self.meas[:, i] /= np.linalg.norm(self.meas[:, i])
             # Evaluate estimator
 
             # Evaluate controller
@@ -283,3 +303,6 @@ class Simulate:
             rpy[:, idx] = quaternion_to_rpy(self.states[start_state_idx:end_state_idx, idx])
 
         return np.array(self.times), rpy
+
+    def get_meas(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        return np.array(self.times), self.meas

@@ -18,12 +18,12 @@ class AttitudeObservationVec:
     reference: np.ndarray
     r"""Reference frame vector, :math:`\vector{r}`"""
 
-    variance: np.floating
+    variance: float|np.floating
     r"""Measurment variance, :math:`\sigma^2`"""
 
     def __post_init__(self):
         # frozen=True means we must use object.__setattr__ to normalize
-        object.__setattr__(self, "measurement", np.asarray(self.body, dtype=float).reshape((3,1)))
+        object.__setattr__(self, "body", np.asarray(self.body, dtype=float).reshape((3,1)))
         object.__setattr__(self, "reference",   np.asarray(self.reference,   dtype=float).reshape((3,1)))
         if not self.variance > 0:
             raise ValueError(f"variance must be positive, got {self.variance}")
@@ -31,7 +31,8 @@ class AttitudeObservationVec:
 @dataclass(frozen=True, slots=True)
 class AttitudeObservationQuat:
     """ TODO: See Markley & Crassidis Eq 6.21, 6.22 for how this changes the MEKF. """
-    pass
+    def __init__(self):
+        raise NotImplementedError()
 
 
 class GyroCalibrationMekf:
@@ -39,7 +40,8 @@ class GyroCalibrationMekf:
     :see also: Markley & Crassidis, page 250, Table 6.1
     """
     def __init__(self):
-        pass
+        raise NotImplementedError()
+
 
 class MissionModeMekf:
     r"""
