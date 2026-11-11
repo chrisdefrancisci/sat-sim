@@ -38,9 +38,10 @@ class Simulate:
 
     @property
     def states(self) -> np.ndarray:
-        return np.asarray(self.results).T
+        return np.asarray(self.results)
 
     def _restart(self):
+        self.times = []
         self.impulse_results = []
         self.maneuvers = []
         self.orbits = []
@@ -124,41 +125,45 @@ class Simulate:
             y0[9:12] += v_norm * man.delta_v
             self.impulse_results.append(ImpulseResultsModel(t0, y0[6:9], man.delta_v))
 
-        self.times = [t0]
-        self.results = [y0]
 
         self.t_final = config.sim_time
+        self.times = np.linspace(0.0, self.t_final, int(self.t_final / dt + 1)) # Skip value at 0.0
+        self.results = np.zeros((len(y0), len(self.times)))
+        self.results [:, 0] = y0.T
 
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
 
-        while self.times[-1] < self.t_final:
-            # Drop the first linspace point
-            t_eval = np.linspace(t0, self.t_final, int((self.t_final - t0) / dt) + 1)[1:]
+        idx = 1
+        for t0 in self.times[1:]:
+            t_eval = (t0, t0 + dt)
 
-            sol = solve_ivp(
-                self._dynamics, [t_eval[0], t_eval[-1]], y0, t_eval=t_eval,
-                args=(self,), rtol=1e-9, events=self._impulse_event
-            )
-            self.times.extend(sol.t)
-            self.results.extend(sol.y.T)
+            while True:
+                sol = solve_ivp(
+                    self._dynamics, t_eval, y0,
+                    args=(self,), rtol=1e-9, events=self._impulse_event
+                )
 
-            # Index 0 corresponds to _impulse_events
-            if len(sol.t_events[0]) > 0:
-                y0 = sol.y[:, -1]
-                # "Do-while"
-                while True:
-                    man = self.maneuvers.pop(0)  # remove maneuver from list
-                    # Apply impulsive delta v in the direction of the current velocity vector
-                    v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
-                    y0[9:12] += v_norm * man.delta_v
-                    # Store result
-                    self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
-                    if len(self.maneuvers) == 0 or man.time != self.maneuvers[0].time:
-                        break
+                # Index 0 corresponds to _impulse_events
+                if len(sol.t_events[0]) > 0:
+                    y0 = sol.y[:, -1]
+                    # "Do-while"
+                    while True:
+                        man = self.maneuvers.pop(0)  # remove maneuver from list
+                        # Apply impulsive delta v in the direction of the current velocity vector
+                        v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
+                        y0[9:12] += v_norm * man.delta_v
+                        # Store result
+                        self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
+                        if len(self.maneuvers) == 0 or man.time != self.maneuvers[0].time:
+                            break
+                    t_eval = (sol.t[-1], t_eval[-1])
+                else:
+                    break
 
-                # Evaluation now starts at previous time
-                t0 = sol.t[-1]
+            self.results[:, idx] = sol.y[:, -1]
+            y0 = sol.y[:, -1]
+            idx += 1
 
         update_q.put(("done", []))
 
