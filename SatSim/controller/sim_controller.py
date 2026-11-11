@@ -93,6 +93,7 @@ class SimController(ttk.Frame):
         # Re-enable UI elements
         self.run_button.config(state="enabled")
         self.progress["value"] = 100
+        self.prog_label.config(text="0%")
         self.prog_frame.grid_remove()
         self.time_slider.grid()
         self.time_slider.lift()

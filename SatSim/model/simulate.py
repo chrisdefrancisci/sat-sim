@@ -1,3 +1,4 @@
+from collections import deque
 import itertools
 import numpy as np
 import queue
@@ -24,7 +25,7 @@ class Simulate:
     def __init__(self, settings: SettingsModel):
         self.settings = settings
         self.impulse_results: list[ImpulseResultsModel] = []
-        self.maneuvers: list[ImpulseModel] = []
+        self.maneuvers: deque[ImpulseModel] = deque()
         self.orbits: list[OrbitDynamics] = []
         self.attitudes: list[AttitudeDynamics] = []
         self.orbit_events = []
@@ -43,7 +44,7 @@ class Simulate:
     def _restart(self):
         self.times = []
         self.impulse_results = []
-        self.maneuvers = []
+        self.maneuvers = deque()
         self.orbits = []
         self.orbit_events = []
         self.results = []
@@ -94,10 +95,45 @@ class Simulate:
             self.pct_complete = pct
             self.update_q.put(("progress", pct))
 
+    def _apply_maneuvers(self, t, y) -> np.ndarray:
+        r"""
+        Apply all maneuvers scheduled at the time of the first pending one.
+        
+        :param t: The maneuver time
+        :param y: State vector
+        :return: Update state vector with :math:`\Delta v` applied.
+        """
+        burn_time = self.maneuvers[0].time
+        while self.maneuvers and self.maneuvers[0].time == burn_time:
+            man = self.maneuvers.popleft()
+            v = y[9:12]
+            y[9:12] = v + v / np.linalg.norm(v) * man.delta_v
+            self.impulse_results.append(ImpulseResultsModel(t, y[6:9].copy(), man.delta_v))
+        return y
+
+    def _advance_simulation(self, t_span: tuple[np.floating, np.floating], y: np.ndarray) -> np.ndarray:
+        """
+        Integrate the dynamics across t_span, restarting the solver if it is interrupted by a terminal event.
+        
+        Note that if :code:`solve_ivp`'s argument for relative tolerance, `rtol`, is not sufficiently small, this will not work.
+
+        :param t_span: Time span, (start, end) tuple.
+        :param y: The initial state at t_span[0]
+        :return: The final state at t_span[1]
+        """ 
+        t = t_span[0]
+        while t < t_span[1]:
+            sol = solve_ivp(
+                self._dynamics, (t, t_span[1]), y, args=(self,),
+                rtol=1e-9, events=self._impulse_event,
+            )
+            t, y = sol.t[-1], sol.y[:, -1].copy()
+            if sol.status == 1:  # terminated by an event
+                y = self._apply_maneuvers(t, y)
+        return y
+
     def run_simulation(self, update_q: queue.Queue):
         r"""
-
-        Note that if :code:`solve_ivp`'s argument for relative tolerance, `rtol`, is not sufficiently small, this will not work.
 
         :return:
         """
@@ -108,62 +144,38 @@ class Simulate:
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
         self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0, 0, 0.1]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
-        self.maneuvers = config.maneuvers
-        self.maneuvers.sort(key=lambda x: x.time)
+        self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))
         self._impulse_event.terminal = True
         self._impulse_event.direction = 1
 
         t0 = 0.0
-        y0 = np.concatenate([orbit.initial_state() for orbit in self.orbits])
+        y = np.concatenate([orbit.initial_state() for orbit in self.orbits])
         att0 = np.concatenate([attitude.initial_state() for attitude in self.attitudes])
-        y0 = np.concatenate((y0, att0))
+        y = np.concatenate((y, att0))
 
-        if len(self.maneuvers) > 0 and (self.maneuvers[0].time <= dt):
-            man = self.maneuvers.pop(0)  # remove maneuver from list
-            # Apply impulsive delta v in the direction of the current velocity vector
-            v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
-            y0[9:12] += v_norm * man.delta_v
-            self.impulse_results.append(ImpulseResultsModel(t0, y0[6:9], man.delta_v))
-
+        y = self._apply_maneuvers(t0, y) # Apply any maneuvers at t = 0
 
         self.t_final = config.sim_time
-        self.times = np.linspace(0.0, self.t_final, int(self.t_final / dt + 1)) # Skip value at 0.0
-        self.results = np.zeros((len(y0), len(self.times)))
-        self.results [:, 0] = y0.T
+        n_steps = round(self.t_final / dt)
+        self.times = np.arange(0, n_steps + 1) * dt
+        self.results = np.empty((len(y), len(self.times)))
+        self.results[:, 0] = y.T
 
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
 
-        idx = 1
-        for t0 in self.times[1:]:
-            t_eval = (t0, t0 + dt)
+        for i in range(1, n_steps + 1):
+            # Solve the orbital and attitude dynamics for the 6DOF simulation at the current timestep
+            y = self._advance_simulation((self.times[i - 1], self.times[i]), y)
+            self.results[:, i] = y
 
-            while True:
-                sol = solve_ivp(
-                    self._dynamics, t_eval, y0,
-                    args=(self,), rtol=1e-9, events=self._impulse_event
-                )
+            # Construct measurements
 
-                # Index 0 corresponds to _impulse_events
-                if len(sol.t_events[0]) > 0:
-                    y0 = sol.y[:, -1]
-                    # "Do-while"
-                    while True:
-                        man = self.maneuvers.pop(0)  # remove maneuver from list
-                        # Apply impulsive delta v in the direction of the current velocity vector
-                        v_norm = y0[9:12] / np.linalg.norm(y0[9:12])
-                        y0[9:12] += v_norm * man.delta_v
-                        # Store result
-                        self.impulse_results.append(ImpulseResultsModel(sol.t[-1], y0[6:9], man.delta_v))
-                        if len(self.maneuvers) == 0 or man.time != self.maneuvers[0].time:
-                            break
-                    t_eval = (sol.t[-1], t_eval[-1])
-                else:
-                    break
+            # Evaluate estimator
 
-            self.results[:, idx] = sol.y[:, -1]
-            y0 = sol.y[:, -1]
-            idx += 1
+            # Evaluate controller
+
+
 
         update_q.put(("done", []))
 
