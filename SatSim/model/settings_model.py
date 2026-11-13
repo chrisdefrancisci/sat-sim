@@ -816,7 +816,7 @@ class MekfSettingsModel:
                                 "var_ang_vel": self.var_ang_vel.get(),
                                 "var_bias_walk": self.var_bias_walk.get()},
                 "init": {"attitude": Quaternion(self.init_attitude.get()),
-                         "gyro_bias": self.init_bias.get(),
+                         "gyro_bias": np.ones((3,1)) * self.init_bias.get(),
                          "covariance": P0}}
         return init
 
