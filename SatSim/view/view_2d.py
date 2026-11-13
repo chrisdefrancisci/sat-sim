@@ -193,3 +193,63 @@ class ViewRpy(ttk.Frame):
         self.t_max = None
         self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
         self.plot.refresh()
+
+
+class ViewN(ttk.Frame):
+    """
+    A plot object to hold quaternion displays.
+    """
+
+    def __init__(self, parent, nrows, ncols=1):
+        super().__init__(parent)
+        self.body = ttk.Frame(self)
+        self.body.pack(fill="both", expand=True)
+
+        self.plot = PlotSubplots(self.body, nrows=nrows, ncols=ncols)
+        self.plot.pack(fill='both', expand=True)
+
+        self.n_plots = nrows * ncols
+
+        self.t_min = None
+        self.t_max = None
+
+        self.paths: list[list[LineView]] = [[] for _ in range(self.n_plots)]
+
+    def update_times(self, t_min, t_max):
+        self.t_min = t_min
+        self.t_max = t_max
+        for paths in self.paths:
+            for path in paths:
+                path.update(t_min, t_max)
+
+        self.plot.set_legend_below(bottom=0.2)
+        self.plot.refresh()
+
+    def _add(self, ax_idx: int, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        data = np.vstack([t, x])
+        paths = self.paths[ax_idx]
+        paths.append(LineView(self.plot.axs.flat[ax_idx], t, data, *args, **kwargs))
+        self.t_min = paths[-1].times[0]
+        self.t_max = paths[-1].times[-1]
+
+        self.update_times(self.t_min, self.t_max)
+
+        self.plot.set_legend_below(bottom=0.2)
+        self.plot.refresh()
+
+    def add_data(self, t: np.ndarray, data: np.ndarray, *args, **kwargs) -> None:
+        for idx, row in enumerate(data):
+            self._add(idx, t, row, *args, **kwargs)
+
+    def clear(self) -> None:
+        for path in self.paths_roll + self.paths_pitch + self.paths_yaw:
+            path.clear()
+        self.paths_roll = []
+        self.paths_pitch = []
+        self.paths_yaw = []
+        for ax in self.plot.axs.flat:
+            ax.redraw_in_frame()
+        self.t_min = None
+        self.t_max = None
+        self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
+        self.plot.refresh()
