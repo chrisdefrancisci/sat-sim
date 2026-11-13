@@ -25,7 +25,7 @@ class AttitudeObservationVec:
         # frozen=True means we must use object.__setattr__ to normalize
         object.__setattr__(self, "body", np.asarray(self.body, dtype=float).reshape((3,1)))
         object.__setattr__(self, "reference",   np.asarray(self.reference,   dtype=float).reshape((3,1)))
-        if not self.variance > 0:
+        if not self.variance >= 0:
             raise ValueError(f"variance must be positive, got {self.variance}")
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +119,7 @@ class MissionModeMekf:
         sigma = var
         # Innovation/residual covariance
         S = H @ P @ H.T + sigma * np.eye(3)
-        K = P @ H @ np.linalg.inv(S)
+        K = P @ H.T @ np.linalg.inv(S)
         return K
 
     def _update_single(self, measurement: AttitudeObservationVec):
@@ -139,7 +139,7 @@ class MissionModeMekf:
         H = self._compute_sensitivity_matrix(r)
         # Calculate new covariance matrix
         P = self.covariance # prior
-        I = np.eye(3)
+        I = np.eye(6)
         self.covariance = (I - K @ H) @ P # post
         # Calculate new state
         eps = b - attitude_matrix(self.attitude_est) @ r # residual
@@ -172,6 +172,7 @@ class MissionModeMekf:
 
         q_unnorm = Quaternion.cross(theta, q_prior)
         self.attitude_est = Quaternion.norm(q_unnorm) # q_post
+        self.gyro_bias_est = self.state[3:,:]
 
         self.state[0:3, :] = 0
 
@@ -211,7 +212,7 @@ class MissionModeMekf:
         :see also: Markley & Cassidis, Eq 6.83, pg 258; Eq. E.128, pg 465
         :param ang_vel: Angular velocity measurement :math:`\omega`, assuming a highly accurate IMU.
         """
-        est_ang_vel = ang_vel - self.gyro_bias_est
+        est_ang_vel = ang_vel.reshape((-1,1)) - self.gyro_bias_est
         om = est_ang_vel # hat omega
         om_norm = np.linalg.norm(om)
         om_cross = cross_prod_matrix(om)
