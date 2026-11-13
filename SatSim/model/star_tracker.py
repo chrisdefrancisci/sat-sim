@@ -16,9 +16,8 @@ class StarTracker:
     def __init__(self, range:tuple[int, int], variance: float|np.floating, field_of_view:np.floating = np.float64(10), orientation:np.ndarray = np.array([1, 0, 0])):
         self.range = range
         self.variance = variance * (np.pi / (180 * 3600)) ** 2 # convert arcsec to radian
-        
-        
-        self.stddev = np.sqrt(self.variance)
+        # self.stddev = np.sqrt(self.variance) TODO: bring this back
+        self.stddev = np.sqrt(self.variance) * 0 # TODO(delete this)
         self.fov = np.deg2rad(field_of_view)
         self.orientation = orientation / np.linalg.norm(orientation)
         self.rng = np.random.default_rng()

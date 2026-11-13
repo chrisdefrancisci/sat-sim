@@ -6,7 +6,7 @@ from scipy.integrate import solve_ivp
 
 from SatSim.algorithms.multiplicative_ekf import AttitudeObservationVec, MissionModeMekf
 from SatSim.common.quaternion import Quaternion
-from SatSim.common.attitude_matrix import quaternion_to_rpy
+from SatSim.common.attitude_matrix import attitude_matrix, quaternion_to_rpy
 from SatSim.model.settings_model import SettingsModel
 from SatSim.model.attitude_dynamics import AttitudeDynamics, MoiTensorCube
 from SatSim.model.orbit_dynamics import OrbitDynamics
@@ -156,7 +156,9 @@ class Simulate:
         config = self.settings.to_model()
         dt = config.estimator.get("dt", 5.0)
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), np.array([[0.001, 0.005, 0.01]]).T,
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(), 
+                                           np.array([[0.00, 0.0, 0.01]]).T,
+                                        #    np.array([[0.001, 0.005, 0.01]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))
         self._impulse_event.terminal = True
@@ -181,6 +183,29 @@ class Simulate:
 
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
+        self.est_att = np.empty((4, len(self.times)))
+        self.est_bias = np.empty((3, len(self.times)))
+
+        def q_min(a, b):
+            """Shortest-arc quaternion (scalar-first) such that C(q) a = b,
+            using the passive q2dcm from earlier."""
+            a = a.flat
+            b = b.flat
+            a = a/np.linalg.norm(a); b = b/np.linalg.norm(b)
+            d = a @ b
+            if d < -1 + 1e-12:                       # antiparallel: pick any perpendicular axis
+                n = np.cross(a, [1,0,0])
+                if np.linalg.norm(n) < 1e-6: n = np.cross(a, [0,1,0])
+                n /= np.linalg.norm(n)
+                return np.array([0, *(-n)])
+            q = np.array([ *(-np.cross(a, b)), 1 + d])   # conjugate because q2dcm is passive
+            return q/np.linalg.norm(q)
+
+        def dcm2euler321(C):
+            yaw   = np.arctan2(C[0,1], C[0,0])
+            pitch = -np.arcsin(np.clip(C[0,2], -1, 1))
+            roll  = np.arctan2(C[1,2], C[2,2])
+            return roll, pitch, yaw
 
         for i in range(1, n_steps + 1):
             # Solve the orbital and attitude dynamics for the 6DOF simulation at the current timestep
@@ -188,10 +213,17 @@ class Simulate:
             self.results[:, i] = y
 
             # Construct measurements
-            meas = sensor.run(Quaternion(y[self.attitude_start:self.attitude_start+4]))
-            self.meas[:, i] = sum(m.body for m in meas).flat
-            self.meas[:, i] /= np.linalg.norm(self.meas[:, i])
+            q = Quaternion(y[self.attitude_start:self.attitude_start+4])
+            meas = sensor.run(q)
+            # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(sum(m.body for m in meas)).flat
+            # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(meas[0].body).flat
+            q_meas = q_min(meas[0].reference, meas[0].body)
+            roll, pitch, yaw = dcm2euler321(attitude_matrix(q_meas))
+            self.meas[:, i] = np.array([roll, pitch, yaw])
             # Evaluate estimator
+            estimator.run(y[self.attitude_start+4:self.attitude_start+7] + self.est_bias[:, i-1], meas)
+            self.est_att[:, i] = estimator.attitude_est._q.copy().flat
+            self.est_bias[:, i] = estimator.gyro_bias_est.copy().flat
 
             # Evaluate controller
 
@@ -306,3 +338,16 @@ class Simulate:
 
     def get_meas(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
         return np.array(self.times), self.meas
+        # rpy = np.zeros((3, len(self.times)))
+        # for idx in range(0, len(self.times)):
+            # rpy[:, idx] = quaternion_to_rpy(Quaternion(self.meas[:, idx]))
+
+        # return np.array(self.times), rpy
+
+    def get_est_att(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        # return np.array(self.times), np.array([self.meas])
+        rpy = np.zeros((3, len(self.times)))
+        for idx in range(0, len(self.times)):
+            rpy[:, idx] = quaternion_to_rpy(Quaternion(self.est_att[:, idx]))
+
+        return np.array(self.times), rpy
