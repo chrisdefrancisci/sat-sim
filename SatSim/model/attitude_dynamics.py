@@ -8,14 +8,17 @@ def MoiTensorCube(mass, length) -> np.ndarray:
 
     :see also: https://en.wikipedia.org/wiki/List_of_moments_of_inertia#List_of_3D_inertia_tensors
     """
-    return np.eye(3) * 1/6 * mass * length **2
+    return np.eye(3) * 1/6 * mass * length ** 2
 
 class AttitudeDynamics:
     STATE_LENGTH = 7
     def __init__(self, q: Quaternion, ang_vel: np.ndarray, moi_tensor: np.ndarray):
         self.attitude = q
+        """Quaternion describing attitude body orientation"""
         self.ang_vel = ang_vel
+        """Angular velocity (rad/s)"""
         self.moi_tensor = moi_tensor
+        """Moment of inertial tensor TODO in [mass * length^2] (kg * m^2 ?)"""
 
     @staticmethod
     def dynamics(t, state:np.ndarray, moi_tensor: np.ndarray, torque: np.ndarray = np.zeros((3,1))) -> np.ndarray:
