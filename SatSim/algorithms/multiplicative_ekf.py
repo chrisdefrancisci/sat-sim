@@ -6,6 +6,7 @@ from typing import Sequence
 from SatSim.common.attitude_matrix import attitude_matrix
 from SatSim.common.quaternion import cross_prod_matrix, Quaternion
 
+
 @dataclass(frozen=True, slots=True)
 class AttitudeObservationVec:
     """
@@ -14,23 +15,25 @@ class AttitudeObservationVec:
 
     body: np.ndarray
     r"""Body frame vector, :math:`\vector{b}`"""
-    
+
     reference: np.ndarray
     r"""Reference frame vector, :math:`\vector{r}`"""
 
-    variance: float|np.floating
+    variance: float | np.floating
     r"""Measurment variance, :math:`\sigma^2`"""
 
     def __post_init__(self):
         # frozen=True means we must use object.__setattr__ to normalize
-        object.__setattr__(self, "body", np.asarray(self.body, dtype=float).reshape((3,1)))
-        object.__setattr__(self, "reference",   np.asarray(self.reference,   dtype=float).reshape((3,1)))
+        object.__setattr__(self, "body", np.asarray(self.body, dtype=float).reshape((3, 1)))
+        object.__setattr__(self, "reference", np.asarray(self.reference, dtype=float).reshape((3, 1)))
         if not self.variance >= 0:
             raise ValueError(f"variance must be positive, got {self.variance}")
+
 
 @dataclass(frozen=True, slots=True)
 class AttitudeObservationQuat:
     """ TODO: See Markley & Crassidis Eq 6.21, 6.22 for how this changes the MEKF. """
+
     def __init__(self):
         raise NotImplementedError()
 
@@ -39,6 +42,7 @@ class GyroCalibrationMekf:
     r"""
     :see also: Markley & Crassidis, page 250, Table 6.1
     """
+
     def __init__(self):
         raise NotImplementedError()
 
@@ -67,7 +71,7 @@ class MissionModeMekf:
         and the spectral density of :math:`\vector{\eta}_u` is :math:`\sigma_u^2 I_3`.
     """
 
-    def __init__(self, dt:np.floating, var_ang_vel: np.floating, var_bias_walk: np.floating):
+    def __init__(self, dt: np.floating, var_ang_vel: np.floating, var_bias_walk: np.floating):
         self.dt = dt
         r"""Filter evaluation period, :math:`\Delta t`"""
 
@@ -77,13 +81,13 @@ class MissionModeMekf:
         self.attitude_est = Quaternion.eye()
         """Global attitude estimation"""
 
-        self.gyro_bias_est = np.zeros((3,1))
+        self.gyro_bias_est = np.zeros((3, 1))
         """Global bias estimation"""
 
         self.covariance = np.eye(6)
         """EKF Covariance, :math:`P`"""
 
-        self.state = np.zeros((6,1))
+        self.state = np.zeros((6, 1))
         r"""
         This state vector of the filter, containing attitude error, :math:`\delta \vector{\vartheta}`,
         and bias error, :math:`\Delta \vector{\beta}`.
@@ -114,7 +118,7 @@ class MissionModeMekf:
         :param var: Variance of the current measurement, :math:`\sigma^2_i|_{t_k}`
         :return: Gain, :math:`K_k`
         """
-        P = self.covariance # prior
+        P = self.covariance  # prior
         H = self._compute_sensitivity_matrix(reference)
         sigma = var
         # Innovation/residual covariance
@@ -134,19 +138,18 @@ class MissionModeMekf:
         b = measurement.body
         r = measurement.reference
         sigma = measurement.variance
-        
+
         K = self._compute_kalman_gain(r, sigma)
         H = self._compute_sensitivity_matrix(r)
         # Calculate new covariance matrix
-        P = self.covariance # prior
+        P = self.covariance  # prior
         I = np.eye(6)
-        self.covariance = (I - K @ H) @ P # post
+        self.covariance = (I - K @ H) @ P  # post
         # Calculate new state
-        eps = b - attitude_matrix(self.attitude_est) @ r # residual
+        eps = b - attitude_matrix(self.attitude_est) @ r  # residual
         dx_prior = self.state
-        dx_post = dx_prior + K @(eps - H @ dx_prior)
-        self.state = dx_post     
-
+        dx_post = dx_prior + K @ (eps - H @ dx_prior)
+        self.state = dx_post
 
     def _update(self, observations: Sequence[AttitudeObservationVec] | AttitudeObservationVec):
         """
@@ -167,12 +170,12 @@ class MissionModeMekf:
         """
         q_prior = self.attitude_est
         theta = Quaternion.eye()
-        theta.vector = self.state[0:3, :] / 2 # attitude error
+        theta.vector = self.state[0:3, :] / 2  # attitude error
         theta.scalar = 1.0
 
         q_unnorm = Quaternion.cross(theta, q_prior)
-        self.attitude_est = Quaternion.norm(q_unnorm) # q_post
-        self.gyro_bias_est = self.state[3:,:]
+        self.attitude_est = Quaternion.normalized(q_unnorm)  # q_post
+        self.gyro_bias_est = self.state[3:, :]
 
         self.state[0:3, :] = 0
 
@@ -196,11 +199,11 @@ class MissionModeMekf:
                 % No whitespace with sphinx 
                 %
                 \Phi_{11} &= I_3 - [\hat{\vector{\omega}} \times] 
-                    \frac{sin(\| \hat{\vector{\omega}} \| \Delta t}{\| \hat{\vector{\omega}} \|}
-                    + [\hat{\vector{\omega}} \times]^2 \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t}{\| \hat{\vector{\omega}} \|^2} \\
+                    \frac{sin(\| \hat{\vector{\omega}} \| \Delta t )}{\| \hat{\vector{\omega}} \|}
+                    + [\hat{\vector{\omega}} \times]^2 \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t)}{\| \hat{\vector{\omega}} \|^2} \\
                 %
                 \Phi_{11} &= [\hat{\vector{\omega}} \times] 
-                    \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t}{\| \hat{\vector{\omega}} \|^2}
+                    \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t )}{\| \hat{\vector{\omega}} \|^2}
                     - I_3 \Delta t
                     - [\hat{\vector{\omega}} \times]^2 \frac{\| \hat{\vector{\omega}} \| \Delta t - sin(\| \hat{\vector{\omega}} \| \Delta t)}{\| \hat{\vector{\omega}} \|^3} \\
                 %
@@ -212,8 +215,8 @@ class MissionModeMekf:
         :see also: Markley & Cassidis, Eq 6.83, pg 258; Eq. E.128, pg 465
         :param ang_vel: Angular velocity measurement :math:`\omega`, assuming a highly accurate IMU.
         """
-        est_ang_vel = ang_vel.reshape((-1,1)) - self.gyro_bias_est
-        om = est_ang_vel # hat omega
+        est_ang_vel = ang_vel.reshape((-1, 1)) - self.gyro_bias_est
+        om = est_ang_vel  # hat omega
         om_norm = np.linalg.norm(om)
         om_cross = cross_prod_matrix(om)
         i3 = np.eye(3)
@@ -229,10 +232,10 @@ class MissionModeMekf:
         p21 = phi[3:6, 0:3]
         p22 = phi[3:6, 3:6]
 
-        p11[:,:] = i3 - om_cross * sin_ / om_norm + om_cross @ om_cross * (1 - cos_) / om_norm **2
-        p12[:,:] = om_cross * (1 - cos_) / om_norm ** 2 - i3 * dt - om_cross @ om_cross * (1 - sin_) / om_norm ** 3
-        p21[:,:] = np.zeros((3, 3))
-        p22[:,:] = np.eye(3)
+        p11[:, :] = i3 - om_cross * sin_ / om_norm + om_cross @ om_cross * (1 - cos_) / om_norm ** 2
+        p12[:, :] = om_cross * (1 - cos_) / om_norm ** 2 - i3 * dt - om_cross @ om_cross * (1 - sin_) / om_norm ** 3
+        p21[:, :] = np.zeros((3, 3))
+        p22[:, :] = np.eye(3)
 
         self.state = phi @ self.state
         self.covariance = phi @ self.covariance @ phi + self.process_noise
@@ -256,8 +259,8 @@ class MissionModeMekf:
         Q[3:6, 0:3] = -(var_u * dt ** 2 / 2) * np.eye(3)
         Q[3:6, 3:6] = (var_u * dt) * np.eye(3)
         return Q
-    
-    def initialize(self, attitude:Quaternion, gyro_bias:np.ndarray, covariance:np.ndarray) -> None:
+
+    def initialize(self, attitude: Quaternion, gyro_bias: np.ndarray, covariance: np.ndarray) -> None:
         r"""
         Initialize the filter.
 
@@ -273,10 +276,10 @@ class MissionModeMekf:
         :param gyro_bias:
         :param covariance:
         """
-        self.attitude_est = Quaternion.norm(attitude)
+        self.attitude_est = Quaternion.normalized(attitude)
         self.gyro_bias_est = gyro_bias
         self.covariance = covariance
-        self.state = np.zeros((6,1))
+        self.state = np.zeros((6, 1))
 
     def run(self, ang_vel: np.ndarray, observations: Sequence[AttitudeObservationVec] | AttitudeObservationVec):
         r"""
