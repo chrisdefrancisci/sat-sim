@@ -169,7 +169,13 @@ class ViewRpy(ttk.Frame):
 
     def _add_bounds(self, ax: Axes, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
         center = kwargs.pop("center", None)
-        data = np.vstack([t, x])
+        if center is None:
+            data_pos = np.vstack([t, x])
+            data_neg = np.vstack([t, -x])
+        else:
+            data_pos = np.vstack([t, x + center])
+            data_neg = np.vstack([t, -x + center])
+
         if ax == self.ax_roll:
             paths = self.paths_roll
         elif ax == self.ax_pitch:
@@ -179,12 +185,8 @@ class ViewRpy(ttk.Frame):
         else:
             raise NotImplementedError
 
-        if center is None:
-            paths.append(LineView(ax, t, data, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
-            paths.append(LineView(ax, t, -data, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
-        else:
-            paths.append(LineView(ax, t, data + center, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
-            paths.append(LineView(ax, t, -data + center, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+        paths.append(LineView(ax, t, data_pos, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+        paths.append(LineView(ax, t, data_neg, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
 
         self.t_min = paths[-1].times[0]
         self.t_max = paths[-1].times[-1]

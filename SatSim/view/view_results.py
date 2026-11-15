@@ -30,6 +30,10 @@ class LrPlotsView(ttk.Frame):
     def update_times(self, t_min: float, t_max: float) -> None:
         for plot in [self.plot_left, self.plot_right]:
             plot.update_times(t_min, t_max)
+            
+    def clear(self) -> None:
+        for plot in [self.plot_left, self.plot_right]:
+            plot.clear()
 
 
 class QuadPlotsView(ttk.Frame):
@@ -61,6 +65,10 @@ class QuadPlotsView(ttk.Frame):
     def update_times(self, t_min: float, t_max: float) -> None:
         for plot in [self.plot_ne, self.plot_nw, self.plot_sw, self.plot_se]:
             plot.update_times(t_min, t_max)
+
+    def clear(self) -> None:
+        for plot in [self.plot_ne, self.plot_nw, self.plot_sw, self.plot_se]:
+            plot.clear()
 
 
 class ResultsView(ttk.Frame):
@@ -106,3 +114,8 @@ class ResultsView(ttk.Frame):
         self.view3d.update_times(t_min, t_max)
         self.viewError.update_times(t_min, t_max)
         self.viewBudget.update_times(t_min, t_max)
+
+    def clear(self) -> None:
+        self.view3d.clear()
+        self.viewError.clear()
+        self.viewBudget.clear()

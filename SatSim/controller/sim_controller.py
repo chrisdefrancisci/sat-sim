@@ -69,10 +69,7 @@ class SimController(ttk.Frame):
         self.progress_q = queue.Queue()
 
     def _run(self):
-        self.view.view3d.clear()
-        self.view.pos_lvlh.clear()
-        self.view.vel_lvlh.clear()
-        self.view.delta_v.clear()
+        self.view.clear()
 
         # Disable UI elements
         self.run_button.config(state="disabled")
@@ -120,7 +117,7 @@ class SimController(ttk.Frame):
         _, meas_rpy = self.model.get_meas()
         self.view.view_rpy.add_rpy(full_t, np.rad2deg(meas_rpy), color=palette[2], label="Measured Attitude")
         est_bounds = self.model.est_att_stddev
-        self.view.view_ang_err.add_rpy(full_t, np.rad2deg(est_bounds), color=palette[1])
+        self.view.view_ang_err.add_rpy_bounds(full_t, np.rad2deg(est_bounds), color=palette[1])
         _, est_rpy = self.model.get_est_att()
         self.view.view_ang_err.add_rpy(full_t, np.rad2deg(est_rpy), color=palette[1], label="Estimated Attitude")
 
