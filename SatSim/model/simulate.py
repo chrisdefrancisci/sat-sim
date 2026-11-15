@@ -38,15 +38,14 @@ class Simulate:
         self.t_final = 0.0
         self.pct_complete = 0.0
 
-
     @property
     def attitude_start(self):
         return len(self.orbits) * OrbitDynamics.STATE_LEN
-    
+
     @property
     def attitude_end(self):
         return self.attitude_start + AttitudeDynamics.STATE_LENGTH
-    
+
     @property
     def states(self) -> np.ndarray:
         # TODO: deprecated, delete
@@ -116,7 +115,7 @@ class Simulate:
         """
         if not self.maneuvers:
             return y
-        
+
         burn_time = self.maneuvers[0].time
         while self.maneuvers and self.maneuvers[0].time == burn_time:
             man = self.maneuvers.popleft()
@@ -134,7 +133,7 @@ class Simulate:
         :param t_span: Time span, (start, end) tuple.
         :param y: The initial state at t_span[0]
         :return: The final state at t_span[1]
-        """ 
+        """
         t = t_span[0]
         while t < t_span[1]:
             sol = solve_ivp(
@@ -156,9 +155,9 @@ class Simulate:
         config = self.settings.to_model()
         dt = config.estimator.get("dt", 5.0)
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
-        self.attitudes = [AttitudeDynamics(Quaternion.eye(), 
+        self.attitudes = [AttitudeDynamics(Quaternion.eye(),
                                            np.array([[0.00, 0.0, 0.01]]).T,
-                                        #    np.array([[0.001, 0.005, 0.01]]).T,
+                                           #    np.array([[0.001, 0.005, 0.01]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))
         self._impulse_event.terminal = True
@@ -169,7 +168,7 @@ class Simulate:
         att0 = np.concatenate([attitude.initial_state() for attitude in self.attitudes])
         y = np.concatenate((y, att0))
 
-        y = self._apply_maneuvers(t0, y) # Apply any maneuvers at t = 0
+        y = self._apply_maneuvers(t0, y)  # Apply any maneuvers at t = 0
 
         self.t_final = config.sim_time
         n_steps = round(self.t_final / dt)
@@ -184,6 +183,8 @@ class Simulate:
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
         self.est_att = np.empty((4, len(self.times)))
+        self.est_att_err = np.empty((3, len(self.times)))
+        self.est_att_stddev = np.empty((3, len(self.times)))
         self.est_bias = np.empty((3, len(self.times)))
 
         def q_min(a, b):
@@ -191,20 +192,21 @@ class Simulate:
             using the passive q2dcm from earlier."""
             a = a.flat
             b = b.flat
-            a = a/np.linalg.norm(a); b = b/np.linalg.norm(b)
+            a = a / np.linalg.norm(a);
+            b = b / np.linalg.norm(b)
             d = a @ b
-            if d < -1 + 1e-12:                       # antiparallel: pick any perpendicular axis
-                n = np.cross(a, [1,0,0])
-                if np.linalg.norm(n) < 1e-6: n = np.cross(a, [0,1,0])
+            if d < -1 + 1e-12:  # antiparallel: pick any perpendicular axis
+                n = np.cross(a, [1, 0, 0])
+                if np.linalg.norm(n) < 1e-6: n = np.cross(a, [0, 1, 0])
                 n /= np.linalg.norm(n)
                 return np.array([0, *(-n)])
-            q = np.array([ *(-np.cross(a, b)), 1 + d])   # conjugate because q2dcm is passive
-            return q/np.linalg.norm(q)
+            q = np.array([*(-np.cross(a, b)), 1 + d])  # conjugate because q2dcm is passive
+            return q / np.linalg.norm(q)
 
         def dcm2euler321(C):
-            yaw   = np.arctan2(C[0,1], C[0,0])
-            pitch = -np.arcsin(np.clip(C[0,2], -1, 1))
-            roll  = np.arctan2(C[1,2], C[2,2])
+            yaw = np.arctan2(C[0, 1], C[0, 0])
+            pitch = -np.arcsin(np.clip(C[0, 2], -1, 1))
+            roll = np.arctan2(C[1, 2], C[2, 2])
             return roll, pitch, yaw
 
         for i in range(1, n_steps + 1):
@@ -213,7 +215,7 @@ class Simulate:
             self.results[:, i] = y
 
             # Construct measurements
-            q = Quaternion(y[self.attitude_start:self.attitude_start+4])
+            q = Quaternion(y[self.attitude_start:self.attitude_start + 4])
             meas = sensor.run(q)
             # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(sum(m.body for m in meas)).flat
             # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(meas[0].body).flat
@@ -221,13 +223,13 @@ class Simulate:
             roll, pitch, yaw = dcm2euler321(attitude_matrix(q_meas))
             self.meas[:, i] = np.array([roll, pitch, yaw])
             # Evaluate estimator
-            estimator.run(y[self.attitude_start+4:self.attitude_start+7] + self.est_bias[:, i-1], meas)
-            self.est_att[:, i] = estimator.attitude_est._q.copy().flat
+            estimator.run(y[self.attitude_start + 4:self.attitude_start + 7] + self.est_bias[:, i - 1], meas)
+            self.est_att[:, i] = np.asarray(estimator.attitude_est).copy().flat
+            self.est_att_err[:, i] = Quaternion.error(Quaternion(self.est_att[:, i]), q).vector.flat
+            self.est_att_stddev[:, i] = np.sqrt(np.diag(estimator.covariance[0:3, 0:3])).flat
             self.est_bias[:, i] = estimator.gyro_bias_est.copy().flat
 
             # Evaluate controller
-
-
 
         update_q.put(("done", []))
 
@@ -340,14 +342,9 @@ class Simulate:
         return np.array(self.times), self.meas
         # rpy = np.zeros((3, len(self.times)))
         # for idx in range(0, len(self.times)):
-            # rpy[:, idx] = quaternion_to_rpy(Quaternion(self.meas[:, idx]))
+        # rpy[:, idx] = quaternion_to_rpy(Quaternion(self.meas[:, idx]))
 
         # return np.array(self.times), rpy
 
     def get_est_att(self, attitude_idx: int = 0) -> tuple[np.ndarray, np.ndarray]:
-        # return np.array(self.times), np.array([self.meas])
-        rpy = np.zeros((3, len(self.times)))
-        for idx in range(0, len(self.times)):
-            rpy[:, idx] = quaternion_to_rpy(Quaternion(self.est_att[:, idx]))
-
-        return np.array(self.times), rpy
+        return np.array(self.times), self.est_att

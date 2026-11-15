@@ -23,7 +23,7 @@ class LineView:
                                                     color=colors.border, linewidth=0.7, alpha=0.8,
                                                     label="Full simulated path")
         self.timed_path: list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :],
-                                                     linewidth=3.0, *args, **kwargs)
+                                                     linewidth=kwargs.pop('linewidth', 3.0), *args, **kwargs)
         self.marker: PathCollection | None = self.ax.scatter(*pos[:, -1], *args, **kwargs)
 
     def clear(self):
@@ -167,6 +167,33 @@ class ViewRpy(ttk.Frame):
         self.plot.set_legend_below(bottom=0.2)
         self.plot.refresh()
 
+    def _add_bounds(self, ax: Axes, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        center = kwargs.pop("center", None)
+        data = np.vstack([t, x])
+        if ax == self.ax_roll:
+            paths = self.paths_roll
+        elif ax == self.ax_pitch:
+            paths = self.paths_pitch
+        elif ax == self.ax_yaw:
+            paths = self.paths_yaw
+        else:
+            raise NotImplementedError
+
+        if center is None:
+            paths.append(LineView(ax, t, data, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+            paths.append(LineView(ax, t, -data, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+        else:
+            paths.append(LineView(ax, t, data + center, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+            paths.append(LineView(ax, t, -data + center, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+
+        self.t_min = paths[-1].times[0]
+        self.t_max = paths[-1].times[-1]
+
+        self.update_times(self.t_min, self.t_max)
+
+        self.plot.set_legend_below(bottom=0.2)
+        self.plot.refresh()
+
     def add_roll(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
         self._add(self.ax_roll, t, x, *args, **kwargs)
 
@@ -180,6 +207,11 @@ class ViewRpy(ttk.Frame):
         self.add_roll(t, rpy[0, :], *args, **kwargs)
         self.add_pitch(t, rpy[1, :], *args, **kwargs)
         self.add_yaw(t, rpy[2, :], *args, **kwargs)
+
+    def add_rpy_bounds(self, t: np.ndarray, rpy: np.ndarray, *args, **kwargs) -> None:
+        self._add_bounds(self.ax_roll, t, rpy[0, :], *args, **kwargs)
+        self._add_bounds(self.ax_pitch, t, rpy[1, :], *args, **kwargs)
+        self._add_bounds(self.ax_yaw, t, rpy[2, :], *args, **kwargs)
 
     def clear(self) -> None:
         for path in self.paths_roll + self.paths_pitch + self.paths_yaw:
@@ -242,11 +274,9 @@ class ViewN(ttk.Frame):
             self._add(idx, t, row, *args, **kwargs)
 
     def clear(self) -> None:
-        for path in self.paths_roll + self.paths_pitch + self.paths_yaw:
+        for path in self.paths:
             path.clear()
-        self.paths_roll = []
-        self.paths_pitch = []
-        self.paths_yaw = []
+        self.paths = []
         for ax in self.plot.axs.flat:
             ax.redraw_in_frame()
         self.t_min = None

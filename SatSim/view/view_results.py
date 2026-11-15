@@ -27,6 +27,10 @@ class LrPlotsView(ttk.Frame):
         left_pane.add(self.plot_left, weight=1)
         right_pane.add(self.plot_right, weight=1)
 
+    def update_times(self, t_min: float, t_max: float) -> None:
+        for plot in [self.plot_left, self.plot_right]:
+            plot.update_times(t_min, t_max)
+
 
 class QuadPlotsView(ttk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -47,12 +51,16 @@ class QuadPlotsView(ttk.Frame):
         # self.plot_nw = View2D(left_pane)
         self.plot_nw = ViewRpy(left_pane)
         self.plot_se = View2D(right_pane)
-        self.plot_sw = ViewN(left_pane, nrows=4)
+        self.plot_sw = ViewRpy(left_pane)
 
         left_pane.add(self.plot_nw, weight=1)
         left_pane.add(self.plot_sw, weight=1)
         right_pane.add(self.plot_ne, weight=1)
         right_pane.add(self.plot_se, weight=1)
+
+    def update_times(self, t_min: float, t_max: float) -> None:
+        for plot in [self.plot_ne, self.plot_nw, self.plot_sw, self.plot_se]:
+            plot.update_times(t_min, t_max)
 
 
 class ResultsView(ttk.Frame):
@@ -84,7 +92,7 @@ class ResultsView(ttk.Frame):
 
         # Angle plots view
         self.view_rpy = self.viewError.plot_nw
-        self.view_quat = self.viewError.plot_sw
+        self.view_ang_err = self.viewError.plot_sw
 
         # Fuel consumption view
         self.viewBudget = LrPlotsView(self.notebook)
@@ -93,3 +101,8 @@ class ResultsView(ttk.Frame):
         self.delta_v.ax.set_title('Delta-v plot')
         self.delta_v.ax.set_xlabel('Time (min)')
         self.delta_v.ax.set_ylabel('Delta v (km/s)')
+
+    def update_times(self, t_min: float, t_max: float) -> None:
+        self.view3d.update_times(t_min, t_max)
+        self.viewError.update_times(t_min, t_max)
+        self.viewBudget.update_times(t_min, t_max)
