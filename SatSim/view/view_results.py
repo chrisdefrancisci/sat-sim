@@ -52,7 +52,6 @@ class QuadPlotsView(ttk.Frame):
         main_pane.add(right_pane, weight=1)
 
         self.plot_ne = View2D(right_pane)
-        # self.plot_nw = View2D(left_pane)
         self.plot_nw = ViewRpy(left_pane)
         self.plot_se = View2D(right_pane)
         self.plot_sw = ViewRpy(left_pane)
