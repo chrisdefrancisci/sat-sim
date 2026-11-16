@@ -28,6 +28,7 @@ class ThemedToolbar(NavigationToolbar2Tk):
                     activebackground=colors.active,
                     activeforeground=fg,
                     highlightbackground=bg,
+                    disabledforeground=colors.primary
                 )
                 if isinstance(child, tk.Checkbutton):
                     child.config(selectcolor=colors.selectbg)  # "pressed" look for pan/zoom
