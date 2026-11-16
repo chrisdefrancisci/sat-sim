@@ -778,8 +778,8 @@ class GyroSettingsModel:
 class MekfSettingsModel:
     def __init__(self, **kwargs):
         self.dt = ttk.DoubleVar(value=kwargs.pop("dt", 1.0))  # s
-        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13))  # rad^2/s
-        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19))  # rad^2/s^3
+        self.var_ang_vel = ttk.DoubleVar(value=kwargs.pop("var_ang_vel", 1.0e-13))  # sigma_v^2, rad^2/s
+        self.var_bias_walk = ttk.DoubleVar(value=kwargs.pop("var_bias_walk", 1.0e-19))  # sigma_u^2, rad^2/s^3
 
         self.init_attitude = QuaternionVars(kwargs.pop("attitude", (0, 0, 0, 1)))
         self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5))  # rad/s
@@ -816,7 +816,7 @@ class MekfSettingsModel:
                                 "var_ang_vel": self.var_ang_vel.get(),
                                 "var_bias_walk": self.var_bias_walk.get()},
                 "init": {"attitude": Quaternion(self.init_attitude.get()),
-                         "gyro_bias": np.ones((3,1)) * self.init_bias.get(),
+                         "gyro_bias": np.ones((3, 1)) * self.init_bias.get(),
                          "covariance": P0}}
         return init
 

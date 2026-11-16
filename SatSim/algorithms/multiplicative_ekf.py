@@ -101,6 +101,25 @@ class MissionModeMekf:
         """
 
     def _compute_sensitivity_matrix(self, reference: np.ndarray) -> np.ndarray:
+        r"""
+        Calculates the measurement sensitivity matrix, :math:`H_k(\hat{\vector{x}}_k^-)`.
+
+        For the :math:`i^{th}` measurement at time :math:`t_k`, the sensitivity matrix is given by
+
+        .. math::
+            H_k = \begin{bmatrix}
+                [A(\hat{\vector{q}}_k^-) \vector{r}_i \times ] & 0_{3 \times 3}
+            \end{bmatrix}\bigr|_{t_k}
+
+        where the estimate of the measurement vector in the body frame is given by
+
+        .. math::
+            \hat{\vector{b}}^- = A(\hat{\vector{q}}^-) \vector{r}
+
+        :see also: Markley & Crassidis, Eq. 6.51b, 6.53, and Fig 6.2; pgs.249, 261.
+        :param reference: The measurement vector in the reference frame.
+        :return: Sensitivity matrix, :math:`H_k(\hat{\vector{x}}_k^-)`.
+        """
         a_mat = attitude_matrix(self.attitude_est)
         r_cross = cross_prod_matrix(reference)
         return np.hstack((a_mat @ r_cross, np.zeros((3, 3))))
@@ -128,7 +147,15 @@ class MissionModeMekf:
 
     def _update_single(self, measurement: AttitudeObservationVec):
         r"""
-        Computes the standard Kalman Filter update step for a single measurement
+        Computes the standard Kalman Filter update step for the :math:`i^{th}` measurement.
+
+        .. math::
+            \begin{aligned}
+                P_k^+ &= [I - K_k H_k] P_k^- \\
+                \vector{\varepsilon}_k &= \bigl( \vector{b}_i - A(\vector{\hat{q}}^-) \vector{r}_i \bigr) |_{t_k} \\
+                \Delta \vector{\hat{x}}_k^+ &= \Delta \vector{\hat{x}}_k^- + K_k \bigl[ \vector{\varepsilon}_k  -
+                H_k \Delta \vector{\hat{x}}_k^- \bigr] \\
+            \end{aligned}
 
         :see also: Markley & Crassidis, Fig 6.2, pg 261 describes this approach as "Murrell's Version"        
         :param measurement: Measurment in the body frame
@@ -166,7 +193,18 @@ class MissionModeMekf:
         r"""
         Executes the reset step of the MEKF.
 
-        Sets the KF rotation state, :math:`\Delta \vector{\vartheta}`, to 0. 
+        .. math::
+            \begin{aligned}
+                \vector{q}^* &= \begin{bmatrix}
+                        \vector{\delta \hat{\vartheta}}^+/2 \\
+                        1
+                    \end{bmatrix}
+                    \otimes \vector{\hat{q}}^- \\
+                \vector{\hat{q}}^+ &= \frac{\vector{q}^*}{\| \vector{q}^* \|}
+            \end{aligned}
+
+        Sets the KF rotation state, :math:`\Delta \vector{\vartheta}`, to 0.
+        :see also: Markley & Crassidis, Eqs.6.27 and 6.28, pg. 243
         """
         q_prior = self.attitude_est
         theta = Quaternion.eye()
@@ -200,12 +238,14 @@ class MissionModeMekf:
                 %
                 \Phi_{11} &= I_3 - [\hat{\vector{\omega}} \times] 
                     \frac{sin(\| \hat{\vector{\omega}} \| \Delta t )}{\| \hat{\vector{\omega}} \|}
-                    + [\hat{\vector{\omega}} \times]^2 \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t)}{\| \hat{\vector{\omega}} \|^2} \\
+                    + [\hat{\vector{\omega}} \times]^2 \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t)}{\|
+                     \hat{\vector{\omega}} \|^2} \\
                 %
                 \Phi_{11} &= [\hat{\vector{\omega}} \times] 
                     \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t )}{\| \hat{\vector{\omega}} \|^2}
                     - I_3 \Delta t
-                    - [\hat{\vector{\omega}} \times]^2 \frac{\| \hat{\vector{\omega}} \| \Delta t - sin(\| \hat{\vector{\omega}} \| \Delta t)}{\| \hat{\vector{\omega}} \|^3} \\
+                    - [\hat{\vector{\omega}} \times]^2 \frac{\| \hat{\vector{\omega}} \| \Delta t - sin(\|
+                    \hat{\vector{\omega}} \| \Delta t)}{\| \hat{\vector{\omega}} \|^3} \\
                 %
                 \Phi_{21} &= 0_{3 \times 3} \\
                 %
@@ -280,14 +320,17 @@ class MissionModeMekf:
         self.gyro_bias_est = gyro_bias
         self.covariance = covariance
         self.state = np.zeros((6, 1))
+        self.state[3:6, :] = gyro_bias
 
     def run(self, ang_vel: np.ndarray, observations: Sequence[AttitudeObservationVec] | AttitudeObservationVec):
         r"""
         Entry point for evaluating the Kalman Filter.
 
-        Propagates across :math:`\Delta t`, updates from all observations, and "resets" - moving information from the filter state to the global attitude state.
+        Propagates across :math:`\Delta t`, updates from all observations, and "resets" - moving information from the
+        filter state to the global attitude state.
         
-        :param ang_vel: The measured angular velocity, :math:`\vector{\omega}`. Used directly (with estimate of bias) in propagation step.
+        :param ang_vel: The measured angular velocity, :math:`\vector{\omega}`. Used directly (with estimate of bias)
+            in propagation step.
         :param observations: Attitude observations, used in the update step.
         """
         self._propagate(ang_vel)

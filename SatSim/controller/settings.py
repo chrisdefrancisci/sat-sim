@@ -396,7 +396,7 @@ class SettingsDialog(ttk.Toplevel):
 
         idx == 0: chaser is settings.chaser_init_orbit itself, so the page only needs refreshing.
         idx > 0:  chaser is a private OrbitModel derived from the previous maneuver's result; keep it in sync.
-                Chaining handles the rest: updating maneuver k's chaser fires maneuver k+1's sync.
+        Chaining handles the rest: updating maneuver k's chaser fires maneuver k+1's sync.
         """
         page = self.maneuver_settings[idx]
         model = self.settings.orbit_maneuvers[idx]

@@ -183,9 +183,11 @@ class Simulate:
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
         self.est_att = np.zeros((4, len(self.times)))
+        self.est_att[:, 0] = np.array([0, 0, 0, 1])
         self.est_att_err = np.zeros((3, len(self.times)))
         self.est_att_stddev = np.zeros((3, len(self.times)))
         self.est_bias = np.zeros((3, len(self.times)))
+        self.est_bias[:, 0] = config.estimator["init"]["gyro_bias"].flat
 
         def q_min(a, b):
             """Shortest-arc quaternion (scalar-first) such that C(q) a = b,
@@ -216,14 +218,16 @@ class Simulate:
 
             # Construct measurements
             q = Quaternion(y[self.attitude_start:self.attitude_start + 4])
-            meas = sensor.run(q)
+            meas_star = sensor.run(q)
             # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(sum(m.body for m in meas)).flat
             # self.meas[:, i] = np.linalg.inv(attitude_matrix(q)) @ np.asarray(meas[0].body).flat
-            q_meas = q_min(meas[0].reference, meas[0].body)
+            q_meas = q_min(meas_star[0].reference, meas_star[0].body)
             roll, pitch, yaw = dcm2euler321(attitude_matrix(q_meas))
             self.meas[:, i] = np.array([roll, pitch, yaw])
+            # TODO: add gyro noise, bias using noise model
+            meas_gyro = y[self.attitude_start + 4:self.attitude_start + 7] + self.est_bias[:, 0]
             # Evaluate estimator
-            estimator.run(y[self.attitude_start + 4:self.attitude_start + 7], meas)
+            estimator.run(meas_gyro, meas_star)
             self.est_att[:, i] = np.asarray(estimator.attitude_est).copy().flat
             self.est_att_err[:, i] = Quaternion.error(Quaternion(self.est_att[:, i]), q).vector.flat
             self.est_att_stddev[:, i] = np.sqrt(np.diag(estimator.covariance[0:3, 0:3])).flat
