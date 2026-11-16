@@ -241,7 +241,7 @@ class MissionModeMekf:
                     + [\hat{\vector{\omega}} \times]^2 \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t)}{\|
                      \hat{\vector{\omega}} \|^2} \\
                 %
-                \Phi_{11} &= [\hat{\vector{\omega}} \times] 
+                \Phi_{12} &= [\hat{\vector{\omega}} \times] 
                     \frac{1 - cos(\| \hat{\vector{\omega}} \| \Delta t )}{\| \hat{\vector{\omega}} \|^2}
                     - I_3 \Delta t
                     - [\hat{\vector{\omega}} \times]^2 \frac{\| \hat{\vector{\omega}} \| \Delta t - sin(\|
@@ -285,16 +285,26 @@ class MissionModeMekf:
         r"""
         Docstring for process_noise_approx
         
+        The process noise can be approximated as
+
+        .. math::
+            Q_k \approx \begin{bmatrix}
+                    \bigl( \sigma_v^2 \Delta t + \frac{1}{3}\sigma_u^2 \Delta t^3 \bigr) I_3 &
+                    -\bigl( \frac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 \\
+                    -\bigl( \frac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 &
+                    \bigl( \sigma_u^2 \Delta t \bigr) I_3 \\
+                \end{bmatrix}
+
         :see also: Markley & Crassidis, Eq 6.93, pg 260
         :param dt: Description
-        :param var_drift: Description
-        :param var_bias: Description
+        :param var_ang_vel: Variance of the angular velocity noise, :math:`\sigma_v^2`
+        :param var_bias_walk: Variance of the angular velocity bias noise, or the bias walk variance. :math:`\sigma_u^2`
         :return: Description
         """
         var_v = var_ang_vel
         var_u = var_bias_walk
         Q = np.zeros((6, 6))
-        Q[0:3, 0:3] = (var_v * dt + var_u * dt ** 2 / 3) * np.eye(3)
+        Q[0:3, 0:3] = (var_v * dt + var_u * dt ** 3 / 3) * np.eye(3)
         Q[0:3, 3:6] = -(var_u * dt ** 2 / 2) * np.eye(3)
         Q[3:6, 0:3] = -(var_u * dt ** 2 / 2) * np.eye(3)
         Q[3:6, 3:6] = (var_u * dt) * np.eye(3)

@@ -10,7 +10,7 @@ class StarTracker:
 
     :param range: The min (inclusive), max (exclusive) number of potential visible stars.
     :param variance: The noise applied to the measurement (arcsec^2).
-    :param field_of_view: The available field of view of the star tracker.
+    :param field_of_view: The available field of view of the star tracker. Note that this implementation takes a shortcut - the field of view is circular instead of rectangular.
     :param orientation: The orientation (in the body frame) of the star tracker
     """
     def __init__(self, range:tuple[int, int], variance: float|np.floating, field_of_view:np.floating = np.float64(10), orientation:np.ndarray = np.array([1, 0, 0])):
@@ -34,7 +34,7 @@ class StarTracker:
         The measurement is within the field of view of the orientation vector.
 
         :see also: Markley & Crassidis, Eq. 6.48a, pg 249
-        :param attitude_matrx: Attitude matrix, :math:`A(\vector{q}^{true})`
+        :param a_matrix_inv: Inverse of the (true) attitude matrix, :math:`A(\vector{q}^{true})`
         :return: Measurement, :math:`\vector{y}_k^{(n)}`.
         """
         orientation = self.orientation
@@ -67,9 +67,9 @@ class StarTracker:
 
     def run(self, attitude_true: Quaternion) -> list[AttitudeObservationVec]:
         """
-        Docstring for run
+        Creates a set of star measurements.
         
-        :param true: Attitude body orientation
+        :param attitude_true: Attitude body orientation
         :return: List containing a random number of observations.
         """
         rng = np.random.default_rng()
