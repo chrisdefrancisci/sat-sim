@@ -173,19 +173,19 @@ class Simulate:
         self.t_final = config.sim_time
         n_steps = round(self.t_final / dt)
         self.times = np.arange(0, n_steps + 1) * dt
-        self.results = np.empty((len(y), len(self.times)))
+        self.results = np.zeros((len(y), len(self.times)))
         self.results[:, 0] = y.T
 
         sensor = StarTracker((1, 11), 36)
-        self.meas = np.empty((3, len(self.times)))
+        self.meas = np.zeros((3, len(self.times)))
         self.meas[:, 0] = np.zeros(3)
 
         estimator = MissionModeMekf(**config.estimator["constructor"])
         estimator.initialize(**config.estimator["init"])
-        self.est_att = np.empty((4, len(self.times)))
-        self.est_att_err = np.empty((3, len(self.times)))
-        self.est_att_stddev = np.empty((3, len(self.times)))
-        self.est_bias = np.empty((3, len(self.times)))
+        self.est_att = np.zeros((4, len(self.times)))
+        self.est_att_err = np.zeros((3, len(self.times)))
+        self.est_att_stddev = np.zeros((3, len(self.times)))
+        self.est_bias = np.zeros((3, len(self.times)))
 
         def q_min(a, b):
             """Shortest-arc quaternion (scalar-first) such that C(q) a = b,
@@ -223,7 +223,7 @@ class Simulate:
             roll, pitch, yaw = dcm2euler321(attitude_matrix(q_meas))
             self.meas[:, i] = np.array([roll, pitch, yaw])
             # Evaluate estimator
-            estimator.run(y[self.attitude_start + 4:self.attitude_start + 7] + self.est_bias[:, i - 1], meas)
+            estimator.run(y[self.attitude_start + 4:self.attitude_start + 7], meas)
             self.est_att[:, i] = np.asarray(estimator.attitude_est).copy().flat
             self.est_att_err[:, i] = Quaternion.error(Quaternion(self.est_att[:, i]), q).vector.flat
             self.est_att_stddev[:, i] = np.sqrt(np.diag(estimator.covariance[0:3, 0:3])).flat
