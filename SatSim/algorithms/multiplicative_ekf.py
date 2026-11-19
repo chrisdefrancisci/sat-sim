@@ -278,7 +278,7 @@ class MissionModeMekf:
         p22[:, :] = np.eye(3)
 
         self.state = phi @ self.state
-        self.covariance = phi @ self.covariance @ phi + self.process_noise
+        self.covariance = phi @ self.covariance @ phi.T + self.process_noise
 
     @staticmethod
     def _process_noise_approx(dt: np.floating, var_ang_vel: np.floating, var_bias_walk: np.floating) -> np.ndarray:
