@@ -272,10 +272,17 @@ class MissionModeMekf:
         p21 = phi[3:6, 0:3]
         p22 = phi[3:6, 3:6]
 
-        p11[:, :] = i3 - om_cross * sin_ / om_norm + om_cross @ om_cross * (1 - cos_) / om_norm ** 2
-        p12[:, :] = om_cross * (1 - cos_) / om_norm ** 2 - i3 * dt - om_cross @ om_cross * (1 - sin_) / om_norm ** 3
-        p21[:, :] = np.zeros((3, 3))
-        p22[:, :] = np.eye(3)
+        if om_norm > 1e-10:
+            p11[:, :] = i3 - om_cross * sin_ / om_norm + om_cross @ om_cross * (1 - cos_) / om_norm ** 2
+            p12[:, :] = om_cross * (1 - cos_) / om_norm ** 2 - i3 * dt - om_cross @ om_cross * (om_norm * dt - sin_) / om_norm ** 3
+            p21[:, :] = np.zeros((3, 3))
+            p22[:, :] = i3
+        else:
+            p11[:, :] = i3
+            p12[:, :] = - i3 * dt
+            p21[:, :] = np.zeros((3, 3))
+            p22[:, :] = i3
+
 
         self.state = phi @ self.state
         self.covariance = phi @ self.covariance @ phi.T + self.process_noise
