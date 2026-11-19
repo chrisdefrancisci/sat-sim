@@ -73,7 +73,7 @@ class Simulate:
 
         for attitude_idx, attitude in enumerate(self.attitudes):
             moi = attitude.moi_tensor
-            start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + len(self.orbits) * OrbitDynamics.STATE_LEN
+            start_state_idx = attitude_idx * AttitudeDynamics.STATE_LENGTH + self.attitude_start
             end_state_idx = start_state_idx + AttitudeDynamics.STATE_LENGTH
             y_prime[start_state_idx:end_state_idx] = AttitudeDynamics.dynamics(t, y[start_state_idx:end_state_idx], moi)
 
@@ -153,10 +153,10 @@ class Simulate:
         self._restart()
         self.update_q = update_q
         config = self.settings.to_model()
-        dt = config.estimator.get("dt", 5.0)
+        dt = config.estimator["constructor"]["dt"]
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
         self.attitudes = [AttitudeDynamics(Quaternion.eye(),
-                                           np.array([[0.00, 0.0, 0.01]]).T,
+                                           np.array([[0.00, 0.00, 0.01]]).T,
                                            #    np.array([[0.001, 0.005, 0.01]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))
