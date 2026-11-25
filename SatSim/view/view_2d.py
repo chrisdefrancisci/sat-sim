@@ -10,6 +10,7 @@ from SatSim.view.plot import Plot, PlotSubplots
 
 class LineView:
     def __init__(self, ax: Axes, times: np.ndarray, pos: np.ndarray, *args, **kwargs):
+        self.plot_marker = kwargs.pop('plot_marker', True)
         self.ax = ax
         self.times = times
         self.pos = pos
@@ -24,7 +25,7 @@ class LineView:
                                                     label="Full simulated path")
         self.timed_path: list[Line2D] = self.ax.plot(self.pos[0, :], self.pos[1, :],
                                                      linewidth=kwargs.pop('linewidth', 3.0), *args, **kwargs)
-        self.marker: PathCollection | None = self.ax.scatter(*pos[:, -1], *args, **kwargs)
+        self.marker: PathCollection | None = self.ax.scatter(*pos[:, -1], *args, **kwargs) if self.plot_marker else None
 
     def clear(self):
         """
@@ -57,7 +58,8 @@ class LineView:
 
         self.timed_path = self.ax.plot(self.pos[0, indices], self.pos[1, indices], *self.args,
                                        **self.kwargs)
-        self.marker = self.ax.scatter(*self.pos[0:2, indices][:, -1], *self.args, **self.kwargs)
+        if self.plot_marker:
+            self.marker = self.ax.scatter(*self.pos[0:2, indices][:, -1], *self.args, **self.kwargs)
         self.ax.redraw_in_frame()
 
 
@@ -185,8 +187,10 @@ class ViewRpy(ttk.Frame):
         else:
             raise NotImplementedError
 
-        paths.append(LineView(ax, t, data_pos, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
-        paths.append(LineView(ax, t, data_neg, *args, linestyle=kwargs.pop('linestyle', '--'), **kwargs))
+        paths.append(
+            LineView(ax, t, data_pos, *args, linestyle=kwargs.pop('linestyle', '--'), plot_marker=False, **kwargs))
+        paths.append(
+            LineView(ax, t, data_neg, *args, linestyle=kwargs.pop('linestyle', '--'), plot_marker=False, **kwargs))
 
         self.t_min = paths[-1].times[0]
         self.t_max = paths[-1].times[-1]
