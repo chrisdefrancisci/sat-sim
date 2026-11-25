@@ -4,7 +4,7 @@ import numpy as np
 from typing import Sequence
 
 from SatSim.common.attitude_matrix import attitude_matrix
-from SatSim.common.quaternion import cross_prod_matrix, Quaternion
+from SatSim.common.quaternion import cross_prod_matrix, omega_matrix, Quaternion
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +19,7 @@ class AttitudeObservationVec:
     reference: np.ndarray
     r"""Reference frame vector, :math:`\vector{r}`"""
 
-    variance: float | np.floating
+    variance: float
     r"""Measurment variance, :math:`\sigma^2`"""
 
     def __post_init__(self):
@@ -69,6 +69,26 @@ class MissionModeMekf:
             \dot{\vector{\beta}}^{true} = \vector{\eta}_u
 
         and the spectral density of :math:`\vector{\eta}_u` is :math:`\sigma_u^2 I_3`.
+
+    Example usage:
+
+    .. code-block:: python
+
+        estimator = MissionModeMekf(dt, var_ang_vel, var_bias_walk)
+        estimator.initialize(attitude, gyro_bias, P0)
+        while (True):
+            # Code to simulate attitude dynamics
+            # ...
+            # Turn true system into measurements
+            meas_gyro = get_gyro_ang_vel()
+            meas_star = get_star_tracker_meas_list()
+            # Run the estimator
+            estimator.run(meas_gyro, meas_star)
+            # Use estimator results
+            attitude = estimator.attitude_est
+            bias = estimator.gyro_bias_est
+            cov = estimator.covariance
+
     """
 
     def __init__(self, dt: np.floating, var_ang_vel: np.floating, var_bias_walk: np.floating):
@@ -124,7 +144,7 @@ class MissionModeMekf:
         r_cross = cross_prod_matrix(reference)
         return np.hstack((a_mat @ r_cross, np.zeros((3, 3))))
 
-    def _compute_kalman_gain(self, reference: np.ndarray, var: np.floating) -> np.ndarray:
+    def _compute_kalman_gain(self, reference: np.ndarray, sigma2: float) -> np.ndarray:
         r"""
         Calculates the Kalman gain for the :math:`i^{th}` measurement at time :math:`t_k`.
 
@@ -134,14 +154,13 @@ class MissionModeMekf:
             K_k = P_k^- H_k^T \left[ H_k P_k^- H_k^T + \sigma_i^2 I_3 \right]^{-1}
         
         :param reference: Reference attitude for the current measurement, :math:`\vector{r}_i|_{t_k}`
-        :param var: Variance of the current measurement, :math:`\sigma^2_i|_{t_k}`
+        :param sigma2: Variance of the current measurement, :math:`\sigma^2_i|_{t_k}`
         :return: Gain, :math:`K_k`
         """
         P = self.covariance  # prior
         H = self._compute_sensitivity_matrix(reference)
-        sigma = var
         # Innovation/residual covariance
-        S = H @ P @ H.T + sigma * np.eye(3)
+        S = H @ P @ H.T + sigma2 * np.eye(3)
         K = P @ H.T @ np.linalg.inv(S)
         return K
 
@@ -164,9 +183,9 @@ class MissionModeMekf:
         """
         b = measurement.body
         r = measurement.reference
-        sigma = measurement.variance
+        var = measurement.variance
 
-        K = self._compute_kalman_gain(r, sigma)
+        K = self._compute_kalman_gain(r, var)
         H = self._compute_sensitivity_matrix(r)
         # Calculate new covariance matrix
         P = self.covariance  # prior
@@ -213,13 +232,96 @@ class MissionModeMekf:
 
         q_unnorm = Quaternion.cross(theta, q_prior)
         self.attitude_est = Quaternion.normalized(q_unnorm)  # q_post
-        self.gyro_bias_est = self.state[3:, :]
+        self.gyro_bias_est += self.state[3:, :]
 
-        self.state[0:3, :] = 0
+        self.state[:] = 0
+
+    def _propagate_attitude(self, om):
+        r"""
+        Propagates attitude using closed form solution.
+        
+        Markley & Crassidis leaves the closed-form discrete time attitude propagation as an exercise left to the reader.
+        From equation 3.18 (pg 71), the quaternion attitude kinematics are given by:
+        
+        .. math::
+            \dot{\vector{q}}(t) = \tfrac{1}{2} \vector{\omega}(t) \otimes \vector{q}(t) = \tfrac{1}{2} \Omega \bigl( \vector{\omega}(t) \bigr) \vector{q}(t)
+        
+        We will show that the propagation step is given by:
+
+        .. math::
+            \vector{\hat{q}}_{k+1}^- = \biggl( cos \bigl(\frac{\| \vector{\omega} \| \Delta t}{2} \bigr) I_4 
+                + \frac{1}{ \| \vector{\omega}\|} sin \bigl(\frac{\| \vector{\omega} \| \Delta t}{2} \bigr) \Omega (\vector{\omega})
+                \biggr) \vector{\hat{q}}_{k}^+
+
+        We will assume the angular velocity is constant over time. :math:`\Omega \bigl( \vector{\omega} \bigr)` is given by:
+
+        .. math::
+            \Omega \bigl( \vector{\omega} \bigr) = \begin{bmatrix}
+                -[\vector{\omega}] & \vector{\omega} \\
+                -\vector{\omega}^T & 0 \\
+            \end{bmatrix}
+
+        A constant angular velocity assumption allows us to use a zero order hold solution for the Ordinary Differential Equation:
+         
+        .. math::
+            \dot{x}(t) = ax(t) + bu(t) \rightarrow x(t) = x(0) e^{at} + \frac{b}{a}(e^{at} - 1)u(t)
+
+        *Ignoring the control input for now...*
+
+        .. math::
+            \vector{\hat{q}}_{k+1} = e^{\tfrac{1}{2} \Omega (\vector{\omega}) \Delta t} \ \vector{\hat{q}}_k
+
+        The exponential is defined as: :math:`e^{A} = I + A +\frac{A^2}{2!} + \frac{A^3}{3!} + \cdots`
+
+        We will use :math:`A = \tfrac{1}{2} \Omega (\vector{\omega}) \Delta t`. Then, :math:`A^2 = -\frac{1}{4} \| \vector{\omega }\| \Delta t^2 I_4 = -\theta^2 I_4`
+        where we define :math:`\theta = \tfrac{1}{2} \| \vector{\omega }\| \Delta t`.
+
+        Substituting this in to the definition of the matrix exponential, we have
+
+        .. math::
+            \begin{aligned}
+                A^2 = && -\theta^2 I_4 && A^3 = && -\theta^2 A \\
+                A^4 = &&  \theta^4 I_4 && A^5 = &&  \theta^4 A \\
+                A^6 = && -\theta^6 I_4 && A^7 = && -\theta^6 A \\
+                \cdots && && \cdots
+            \end{aligned}
+
+        This splits into even terms (multiples of :math:`I_4`) and odd terms (multiples of :math:`A`):
+
+        .. math::
+            \begin{aligned}
+                I_4 \bigl( 1 - \frac{\theta^2}{2!} + \frac{\theta^4}{4!} - \frac{\theta^6}{6!} + \cdots \bigr) & = I_4 cos(\theta) \\
+                & = I_4 cos \bigl( \tfrac{1}{2} \| \vector{\omega }\| \Delta t \bigr) \\
+                A \bigl( 1 - \frac{\theta^2}{3!} + \frac{\theta^4}{5!} - \frac{\theta^6}{7!} + \cdots \bigr) & = A \frac{sin( \theta)}{\theta} \\
+                & = \frac{\Omega(\vector{\omega}) }{\| \vector{\omega} \|}  sin \bigl( \tfrac{1}{2} \| \vector{\omega }\| \Delta t \bigr) \\
+            \end{aligned}
+
+        The exponential in the closed form solution is then given by :
+
+        .. math::
+            e^{\tfrac{1}{2} \Omega (\vector{\omega}) \Delta t} = I_4 cos \bigl( \tfrac{1}{2} \| \vector{\omega }\| \Delta t \bigr) + 
+                \frac{\Omega(\vector{\omega}) }{\| \vector{\omega} \|}  sin \bigl( \tfrac{1}{2} \| \vector{\omega }\| \Delta t \bigr)
+
+        We can substitude the result given below to determine the closed form solution for the quaternion propagation.
+
+        :todo: revisit with control input
+        :param om: Angular velocity (assumed constant over time window)
+        """
+        w = float(np.linalg.norm(om))
+        dt = self.dt
+        # calcluate discretized state transition matrix e^{A dt} = Phi
+        if w > 1e-10:
+            discrete_phi = (np.cos(0.5 * w * dt) * np.eye(4)
+                    + np.sin(0.5 * w * dt) / w * omega_matrix(om))
+        else:
+            discrete_phi = np.eye(4) + 0.5 * dt * omega_matrix(om)
+        # TODO: `@`` calls __array__ and not __rmatmul__, so the returned object is an array
+        #   Look into `__array_ufunc__`. See https://numpy.org/doc/1.22/user/basics.dispatch.html
+        self.attitude_est = Quaternion.normalized(Quaternion(discrete_phi @ self.attitude_est))
 
     def _propagate(self, ang_vel: np.ndarray):
         r"""
-
+        Computes the propagation step of the Kalman filter.
         
         .. math::
             \begin{aligned}
@@ -255,7 +357,7 @@ class MissionModeMekf:
         :see also: Markley & Cassidis, Eq 6.83, pg 258; Eq. E.128, pg 465
         :param ang_vel: Angular velocity measurement :math:`\omega`, assuming a highly accurate IMU.
         """
-        est_ang_vel = ang_vel.reshape((-1, 1)) - self.gyro_bias_est
+        est_ang_vel = ang_vel.reshape((3, 1)) - self.gyro_bias_est
         om = est_ang_vel  # hat omega
         om_norm = np.linalg.norm(om)
         om_cross = cross_prod_matrix(om)
@@ -279,11 +381,11 @@ class MissionModeMekf:
             p22[:, :] = i3
         else:
             p11[:, :] = i3
-            p12[:, :] = - i3 * dt
+            p12[:, :] = -i3 * dt
             p21[:, :] = np.zeros((3, 3))
             p22[:, :] = i3
 
-
+        self._propagate_attitude(om)
         self.state = phi @ self.state
         self.covariance = phi @ self.covariance @ phi.T + self.process_noise
 
@@ -297,8 +399,8 @@ class MissionModeMekf:
         .. math::
             Q_k \approx \begin{bmatrix}
                     \bigl( \sigma_v^2 \Delta t + \frac{1}{3}\sigma_u^2 \Delta t^3 \bigr) I_3 &
-                    -\bigl( \frac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 \\
-                    -\bigl( \frac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 &
+                    -\bigl( \tfrac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 \\
+                    -\bigl( \tfrac{1}{2} \sigma_u^2 \Delta t^2 \bigr) I_3 &
                     \bigl( \sigma_u^2 \Delta t \bigr) I_3 \\
                 \end{bmatrix}
 
@@ -334,10 +436,9 @@ class MissionModeMekf:
         :param covariance:
         """
         self.attitude_est = Quaternion.normalized(attitude)
-        self.gyro_bias_est = gyro_bias
+        self.gyro_bias_est = gyro_bias.reshape((3,1)).copy()
         self.covariance = covariance
         self.state = np.zeros((6, 1))
-        self.state[3:6, :] = gyro_bias
 
     def run(self, ang_vel: np.ndarray, observations: Sequence[AttitudeObservationVec] | AttitudeObservationVec):
         r"""
