@@ -248,7 +248,7 @@ class Quaternion:
         r"""
         Returns the quaternion, normalized.
         """
-        return obj / np.linalg.norm(obj._q)
+        return obj / np.linalg.norm(obj._q) ** 2
 
     @classmethod
     def error(cls, q1: 'Quaternion', q2: 'Quaternion') -> 'Quaternion':
