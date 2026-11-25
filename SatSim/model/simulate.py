@@ -156,7 +156,7 @@ class Simulate:
         dt = config.estimator["constructor"]["dt"]
         self.orbits = [OrbitDynamics(config.target_orbit), OrbitDynamics(config.chaser_orbit)]
         self.attitudes = [AttitudeDynamics(Quaternion.eye(),
-                                           np.array([[0.00, 0.00, 0.01]]).T,
+                                           np.array([[0.01, 0.01, 0.01]]).T,
                                            #    np.array([[0.001, 0.005, 0.01]]).T,
                                            MoiTensorCube(1, 0.001))]  # TODO: make configurable
         self.maneuvers = deque(sorted(config.maneuvers, key=lambda x: x.time))

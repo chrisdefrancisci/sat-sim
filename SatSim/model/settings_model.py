@@ -783,8 +783,8 @@ class MekfSettingsModel:
 
         self.init_attitude = QuaternionVars(kwargs.pop("attitude", (0, 0, 0, 1)))
         self.init_bias = ttk.DoubleVar(value=kwargs.pop("bias", 3.0e-5))  # rad/s
-        self.init_var_att = ttk.DoubleVar(value=kwargs.pop("atttitude_var", 0.1))  # TODO
-        self.init_var_bias = ttk.DoubleVar(value=kwargs.pop("bias_var", 0.1))  # TODO
+        self.init_var_att = ttk.DoubleVar(value=kwargs.pop("atttitude_var", 1e-10))  # TODO
+        self.init_var_bias = ttk.DoubleVar(value=kwargs.pop("bias_var", 1e-10))  # TODO
 
     def __deepcopy__(self, memo):
         cls = self.__class__

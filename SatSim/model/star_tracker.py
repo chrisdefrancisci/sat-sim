@@ -13,7 +13,7 @@ class StarTracker:
     :param field_of_view: The available field of view of the star tracker. Note that this implementation takes a shortcut - the field of view is circular instead of rectangular.
     :param orientation: The orientation (in the body frame) of the star tracker
     """
-    def __init__(self, range:tuple[int, int], variance: float|np.floating, field_of_view:np.floating = np.float64(10), orientation:np.ndarray = np.array([1, 0, 0])):
+    def __init__(self, range:tuple[int, int], variance: float, field_of_view:float= 10.0, orientation:np.ndarray = np.array([0, -1, 0])):
         self.range = range
         self.variance = variance * (np.pi / (180 * 3600)) ** 2 # convert arcsec to radian
         # self.stddev = np.sqrt(self.variance) TODO: bring this back

@@ -118,7 +118,7 @@ class SimController(ttk.Frame):
         self.view.view_rpy.add_rpy(full_t, np.rad2deg(meas_rpy), color=palette[2], label="Measured Attitude")
         est_bounds = self.model.est_att_stddev
         self.view.view_ang_err.add_rpy_bounds(full_t, np.rad2deg(est_bounds), color=palette[1])
-        _, est_rpy = self.model.get_est_att()
+        est_rpy = self.model.est_att_err
         self.view.view_ang_err.add_rpy(full_t, np.rad2deg(est_rpy), color=palette[1], label="Estimated Attitude")
 
         # Update view - budget
