@@ -112,131 +112,7 @@ class View2D(ttk.Frame):
         self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
         self.plot.refresh()
 
-
-class ViewRpy(ttk.Frame):
-    """
-    A plot object to hold roll, pitch and yaw displays.
-    """
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.body = ttk.Frame(self)
-        self.body.pack(fill="both", expand=True)
-
-        self.plot = Plot(self.body, nrows=3, ncols=1)
-        self.plot.pack(fill='both', expand=True)
-
-        self.ax_roll: Axes = self.plot.axs[0, 0]
-        self.ax_pitch: Axes = self.plot.axs[1, 0]
-        self.ax_yaw: Axes = self.plot.axs[2, 0]
-
-        self.t_min = None
-        self.t_max = None
-
-        self.paths_roll: list[LineView] = []
-        self.paths_pitch: list[LineView] = []
-        self.paths_yaw: list[LineView] = []
-
-        self.ax_roll.set_ylabel("Roll")
-        self.ax_pitch.set_ylabel("Pitch")
-        self.ax_yaw.set_ylabel("Yaw")
-
-    def update_times(self, t_min, t_max):
-        self.t_min = t_min
-        self.t_max = t_max
-        for path in self.paths_roll + self.paths_pitch + self.paths_yaw:
-            path.update(t_min, t_max)
-
-        self.plot.set_legend_below(bottom=0.2)
-        self.plot.refresh()
-
-    def _add(self, ax: Axes, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
-        data = np.vstack([t, x])
-        if ax == self.ax_roll:
-            paths = self.paths_roll
-        elif ax == self.ax_pitch:
-            paths = self.paths_pitch
-        elif ax == self.ax_yaw:
-            paths = self.paths_yaw
-        else:
-            raise NotImplementedError
-        paths.append(LineView(ax, t, data, *args, **kwargs))
-        self.t_min = paths[-1].times[0]
-        self.t_max = paths[-1].times[-1]
-
-        self.update_times(self.t_min, self.t_max)
-
-        self.plot.set_legend_below(bottom=0.2)
-        self.plot.refresh()
-
-    def _add_bounds(self, ax: Axes, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
-        center = kwargs.pop("center", None)
-        if center is None:
-            data_pos = np.vstack([t, x])
-            data_neg = np.vstack([t, -x])
-        else:
-            data_pos = np.vstack([t, x + center])
-            data_neg = np.vstack([t, -x + center])
-
-        if ax == self.ax_roll:
-            paths = self.paths_roll
-        elif ax == self.ax_pitch:
-            paths = self.paths_pitch
-        elif ax == self.ax_yaw:
-            paths = self.paths_yaw
-        else:
-            raise NotImplementedError
-
-        paths.append(
-            LineView(ax, t, data_pos, *args, linestyle=kwargs.pop('linestyle', '--'), plot_marker=False, **kwargs))
-        paths.append(
-            LineView(ax, t, data_neg, *args, linestyle=kwargs.pop('linestyle', '--'), plot_marker=False, **kwargs))
-
-        self.t_min = paths[-1].times[0]
-        self.t_max = paths[-1].times[-1]
-
-        self.update_times(self.t_min, self.t_max)
-
-        self.plot.set_legend_below(bottom=0.2)
-        self.plot.refresh()
-
-    def add_roll(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
-        self._add(self.ax_roll, t, x, *args, **kwargs)
-
-    def add_pitch(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
-        self._add(self.ax_pitch, t, x, *args, **kwargs)
-
-    def add_yaw(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
-        self._add(self.ax_yaw, t, x, *args, **kwargs)
-
-    def add_rpy(self, t: np.ndarray, rpy: np.ndarray, *args, **kwargs) -> None:
-        self.add_roll(t, rpy[0, :], *args, **kwargs)
-        self.add_pitch(t, rpy[1, :], *args, **kwargs)
-        self.add_yaw(t, rpy[2, :], *args, **kwargs)
-
-    def add_rpy_bounds(self, t: np.ndarray, rpy: np.ndarray, *args, **kwargs) -> None:
-        self._add_bounds(self.ax_roll, t, rpy[0, :], *args, **kwargs)
-        self._add_bounds(self.ax_pitch, t, rpy[1, :], *args, **kwargs)
-        self._add_bounds(self.ax_yaw, t, rpy[2, :], *args, **kwargs)
-
-    def clear(self) -> None:
-        for path in self.paths_roll + self.paths_pitch + self.paths_yaw:
-            path.clear()
-        self.paths_roll = []
-        self.paths_pitch = []
-        self.paths_yaw = []
-        for ax in [self.ax_roll, self.ax_pitch, self.ax_yaw]:
-            ax.redraw_in_frame()
-        self.t_min = None
-        self.t_max = None
-        self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
-        self.plot.refresh()
-
-
 class ViewN(ttk.Frame):
-    """
-    A plot object to hold quaternion displays.
-    """
 
     def __init__(self, parent, nrows, ncols=1):
         super().__init__(parent)
@@ -272,20 +148,82 @@ class ViewN(ttk.Frame):
 
         self.update_times(self.t_min, self.t_max)
 
-        self.plot.set_legend_below(bottom=0.2)
-        self.plot.refresh()
-
     def add_data(self, t: np.ndarray, data: np.ndarray, *args, **kwargs) -> None:
         for idx, row in enumerate(data):
             self._add(idx, t, row, *args, **kwargs)
 
     def clear(self) -> None:
-        for path in self.paths:
-            path.clear()
-        self.paths = []
+        for paths in self.paths:
+            for path in paths:
+                path.clear()
+        self.paths = [[] for _ in range(self.n_plots)]
         for ax in self.plot.axs.flat:
             ax.redraw_in_frame()
         self.t_min = None
         self.t_max = None
         self.plot.set_legend_below(bottom=0.2)  # drops the now-empty legend
         self.plot.refresh()
+
+class ViewRpy(ViewN):
+    """
+    A plot object to hold roll, pitch and yaw displays.
+    """
+
+    ROLL, PITCH, YAW = 0, 1, 2
+
+    def __init__(self, parent):
+        super().__init__(parent, nrows=3, ncols=1)
+
+        self.ax_roll: Axes = self.plot.axs[self.ROLL, 0]
+        self.ax_pitch: Axes = self.plot.axs[self.PITCH, 0]
+        self.ax_yaw: Axes = self.plot.axs[self.YAW, 0]
+
+        self.ax_roll.set_ylabel("Roll")
+        self.ax_pitch.set_ylabel("Pitch")
+        self.ax_yaw.set_ylabel("Yaw")
+
+    # Convenience views onto the per-axis path lists
+    @property
+    def paths_roll(self) -> list[LineView]:
+        return self.paths[self.ROLL]
+
+    @property
+    def paths_pitch(self) -> list[LineView]:
+        return self.paths[self.PITCH]
+
+    @property
+    def paths_yaw(self) -> list[LineView]:
+        return self.paths[self.YAW]
+
+    def _add_bounds(self, ax_idx: int, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        center = kwargs.pop("center", None)
+        linestyle = kwargs.pop("linestyle", "--")
+        offset = 0 if center is None else center
+
+        paths = self.paths[ax_idx]
+        ax = self.plot.axs.flat[ax_idx]
+        for sign in (1, -1):
+            data = np.vstack([t, sign * x + offset])
+            paths.append(LineView(ax, t, data, *args,
+                                  linestyle=linestyle, plot_marker=False, **kwargs))
+
+        self.t_min = paths[-1].times[0]
+        self.t_max = paths[-1].times[-1]
+
+        self.update_times(self.t_min, self.t_max)
+
+    def add_roll(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        self._add(self.ROLL, t, x, *args, **kwargs)
+
+    def add_pitch(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        self._add(self.PITCH, t, x, *args, **kwargs)
+
+    def add_yaw(self, t: np.ndarray, x: np.ndarray, *args, **kwargs) -> None:
+        self._add(self.YAW, t, x, *args, **kwargs)
+
+    def add_rpy(self, t: np.ndarray, rpy: np.ndarray, *args, **kwargs) -> None:
+        self.add_data(t, rpy, *args, **kwargs)
+
+    def add_rpy_bounds(self, t: np.ndarray, rpy: np.ndarray, *args, **kwargs) -> None:
+        for idx in (self.ROLL, self.PITCH, self.YAW):
+            self._add_bounds(idx, t, rpy[idx, :], *args, **kwargs)
