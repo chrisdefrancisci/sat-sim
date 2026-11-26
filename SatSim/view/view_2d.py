@@ -5,7 +5,7 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from SatSim.view.plot import Plot, PlotSubplots
+from SatSim.view.plot import Plot
 
 
 class LineView:
@@ -121,12 +121,12 @@ class ViewRpy(ttk.Frame):
         self.body = ttk.Frame(self)
         self.body.pack(fill="both", expand=True)
 
-        self.plot = PlotSubplots(self.body, nrows=3, ncols=1)
+        self.plot = Plot(self.body, nrows=3, ncols=1)
         self.plot.pack(fill='both', expand=True)
 
-        self.ax_roll: Axes = self.plot.axs[0]
-        self.ax_pitch: Axes = self.plot.axs[1]
-        self.ax_yaw: Axes = self.plot.axs[2]
+        self.ax_roll: Axes = self.plot.axs[0, 0]
+        self.ax_pitch: Axes = self.plot.axs[1, 0]
+        self.ax_yaw: Axes = self.plot.axs[2, 0]
 
         self.t_min = None
         self.t_max = None
@@ -239,7 +239,7 @@ class ViewN(ttk.Frame):
         self.body = ttk.Frame(self)
         self.body.pack(fill="both", expand=True)
 
-        self.plot = PlotSubplots(self.body, nrows=nrows, ncols=ncols)
+        self.plot = Plot(self.body, nrows=nrows, ncols=ncols)
         self.plot.pack(fill='both', expand=True)
 
         self.n_plots = nrows * ncols

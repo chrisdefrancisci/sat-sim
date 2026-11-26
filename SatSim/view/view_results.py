@@ -3,7 +3,6 @@ import ttkbootstrap as ttk
 from SatSim.view.plot import Plot
 from SatSim.view.view_3d import View3D
 from SatSim.view.view_2d import View2D, ViewRpy, ViewN
-from SatSim.view.plot import PlotSubplots
 
 
 class LrPlotsView(ttk.Frame):
