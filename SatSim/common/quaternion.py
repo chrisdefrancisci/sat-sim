@@ -95,10 +95,26 @@ class Quaternion:
         self._q[key] = value
 
     def __str__(self) -> str:
-        return f"{self._q}"
+        entries = [f"{x:.4f}" for x in self._q.flatten()]
+        width = max(len(e) for e in entries)
+        v = [e.rjust(width) for e in entries[:3]]
+        s = entries[3].rjust(width)
+
+        return f"Quaternion([{v[0]}, {v[1]}, {v[2]} | {s}])"
 
     def __repr__(self) -> str:
-        return f"{self._q}"
+        entries = [f"{x:.4f}" for x in self._q.flatten()]
+        width = max(len(e) for e in entries)
+        v = [e.rjust(width) for e in entries[:3]]
+        s = entries[3].rjust(width)
+
+        return (
+            f"Quaternion(\n"
+            f"  vector: [[{v[0]}],\n"
+            f"           [{v[1]}],\n"
+            f"           [{v[2]}]]\n"
+            f"  scalar: [[{s}]])"
+        )
 
     def __add__(self, other: 'Quaternion'):
         return Quaternion(self._q + other._q)
